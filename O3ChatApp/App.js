@@ -5,6 +5,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useFonts } from "expo-font";
 import AnimationBackground from "./screen/AnimationBackground";
+import LoginForm from "./screen/LoginASignUp/LoginForm";
 
 const LoginASign = () => {
   const [fontsLoaded] = useFonts({
@@ -23,7 +24,7 @@ const LoginASign = () => {
         style={styles.background}
       />
       <View style={styles.logo}>
-        <Text style={styles.txtLogo}>O3Chat</Text>
+        <Text style={styles.txtLogo}>4MChat</Text>
       </View>
       <Pressable style={styles.btnLogin}>
         <Text style={styles.txtLogin}>Đăng Nhập</Text>
@@ -44,11 +45,12 @@ export default function App() {
         initialRouteName="AnimationBackground"
         screenOptions={{ headerShown: false }}
       >
-        <Stack.Screen
+        {/* <Stack.Screen
           name="AnimationBackground"
           component={AnimationBackground}
         />
-        <Stack.Screen name="LoginASign" component={LoginASign} />
+        <Stack.Screen name="LoginASign" component={LoginASign} /> */}
+        <Stack.Screen name="LoginForm" component={LoginForm} />
       </Stack.Navigator>
     </NavigationContainer>
   );

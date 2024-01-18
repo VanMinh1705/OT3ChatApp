@@ -22,7 +22,7 @@ const AnimationBackground = ({ navigation }) => {
         style={styles.background}
       />
       <View style={styles.logo}>
-        <Text style={styles.txtLogo}>O3Chat</Text>
+        <Text style={styles.txtLogo}>4MChat</Text>
       </View>
     </SafeAreaView>
   );
