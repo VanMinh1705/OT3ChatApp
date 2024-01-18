@@ -6,7 +6,7 @@ import { useFonts } from "expo-font";
 const AnimationBackground = ({ navigation }) => {
   setTimeout(() => {
     navigation.navigate("LoginASign");
-  }, 3000);
+  }, 1200);
   const [fontsLoaded] = useFonts({
     "keaniaone-regular": require("../assets/fonts/KeaniaOne-Regular.ttf"),
   });

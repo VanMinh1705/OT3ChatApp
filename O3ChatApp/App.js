@@ -1,5 +1,14 @@
 import * as React from "react";
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  BackHandler,
+  Image,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -7,13 +16,48 @@ import { useFonts } from "expo-font";
 import AnimationBackground from "./screen/AnimationBackground";
 import LoginForm from "./screen/LoginASignUp/LoginForm";
 
-const LoginASign = () => {
+const LoginASign = ({ navigation }) => {
   const [fontsLoaded] = useFonts({
     "keaniaone-regular": require("./assets/fonts/KeaniaOne-Regular.ttf"),
   });
 
+  const handleBackPress = () => {
+    Alert.alert(
+      "Exit App",
+      "Thoát ứng dụng?",
+      [
+        {
+          text: "Cancel",
+          onPress: () => {
+            console.log("Cancel Pressed");
+          },
+          style: "cancel",
+        },
+        {
+          text: "Ok",
+          onPress: () => BackHandler.exitApp(),
+        },
+      ],
+      {
+        cancelable: false,
+      }
+    );
+    return true;
+  };
+  React.useEffect(() => {
+    const unsubscribe = navigation.addListener("beforeRemove", (e) => {
+      e.preventDefault();
+      handleBackPress();
+    });
+
+    // Ensure that you unsubscribe from the event when the component is unmounted
+    return () => {
+      unsubscribe();
+    };
+  }, [navigation]); // <-- Make sure to include `navigation` in the dependency array
+
   if (!fontsLoaded) {
-    return undefined;
+    return null;
   }
 
   return (
@@ -23,10 +67,16 @@ const LoginASign = () => {
         colors={["#4AD8C7", "#B728A9"]}
         style={styles.background}
       />
+
       <View style={styles.logo}>
         <Text style={styles.txtLogo}>4MChat</Text>
       </View>
-      <Pressable style={styles.btnLogin}>
+      <Pressable
+        onPress={() => {
+          navigation.navigate("LoginForm");
+        }}
+        style={styles.btnLogin}
+      >
         <Text style={styles.txtLogin}>Đăng Nhập</Text>
       </Pressable>
       <Pressable style={styles.btnSignUp}>
@@ -45,11 +95,15 @@ export default function App() {
         initialRouteName="AnimationBackground"
         screenOptions={{ headerShown: false }}
       >
-        {/* <Stack.Screen
+        <Stack.Screen
           name="AnimationBackground"
           component={AnimationBackground}
         />
-        <Stack.Screen name="LoginASign" component={LoginASign} /> */}
+        <Stack.Screen
+          options={{ headerLeft: null }}
+          name="LoginASign"
+          component={LoginASign}
+        />
         <Stack.Screen name="LoginForm" component={LoginForm} />
       </Stack.Navigator>
     </NavigationContainer>
