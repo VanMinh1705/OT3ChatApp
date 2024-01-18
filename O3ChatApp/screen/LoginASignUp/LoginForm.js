@@ -1,4 +1,5 @@
 import {
+  Image,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -10,7 +11,7 @@ import React from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFonts } from "expo-font";
 
-const LoginForm = () => {
+const LoginForm = ({ navigation }) => {
   const [fontsLoaded] = useFonts({
     "keaniaone-regular": require("../../assets/fonts/KeaniaOne-Regular.ttf"),
   });
@@ -29,8 +30,14 @@ const LoginForm = () => {
         <Text style={styles.txtLogo}>4MChat</Text>
       </View>
 
-      <TextInput style={styles.inputSdt} placeholder="Số điện thoại" />
-      <TextInput style={styles.inputPass} placeholder="Mật khẩu" />
+      <TextInput
+        style={{ ...styles.inputSdt, color: "#000" }}
+        placeholder="Số điện thoại"
+      />
+      <TextInput
+        style={{ ...styles.inputPass, color: "#000" }}
+        placeholder="Mật khẩu"
+      />
       <Text style={{ color: "#0B0B0B", fontSize: 14, marginTop: 20 }}>
         Quên mật khẩu?
       </Text>
