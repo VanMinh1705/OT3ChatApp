@@ -15,6 +15,8 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useFonts } from "expo-font";
 import AnimationBackground from "./screen/AnimationBackground";
 import LoginForm from "./screen/LoginASignUp/LoginForm";
+import SignUpForm from "./screen/LoginASignUp/SignUpForm";
+import HomeScreen from "./screen/Inside/HomeScreen";
 
 const LoginASign = ({ navigation }) => {
   const [fontsLoaded] = useFonts({
@@ -79,7 +81,12 @@ const LoginASign = ({ navigation }) => {
       >
         <Text style={styles.txtLogin}>Đăng Nhập</Text>
       </Pressable>
-      <Pressable style={styles.btnSignUp}>
+      <Pressable
+        onPress={() => {
+          navigation.navigate("SignUpForm");
+        }}
+        style={styles.btnSignUp}
+      >
         <Text style={styles.txtSignUp}>Đăng Ký</Text>
       </Pressable>
     </SafeAreaView>
@@ -105,6 +112,8 @@ export default function App() {
           component={LoginASign}
         />
         <Stack.Screen name="LoginForm" component={LoginForm} />
+        <Stack.Screen name="SignUpForm" component={SignUpForm} />
+        <Stack.Screen name="HomeScreen" component={HomeScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

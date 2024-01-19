@@ -1,5 +1,4 @@
 import {
-  Image,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -11,13 +10,12 @@ import React from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFonts } from "expo-font";
 
-const LoginForm = ({ navigation }) => {
+const SignUpForm = ({ navigation }) => {
   const [fontsLoaded] = useFonts({
     "keaniaone-regular": require("../../assets/fonts/KeaniaOne-Regular.ttf"),
   });
-
   if (!fontsLoaded) {
-    return undefined;
+    return null;
   }
   return (
     <SafeAreaView style={styles.container}>
@@ -30,30 +28,41 @@ const LoginForm = ({ navigation }) => {
         <Text style={styles.txtLogo}>4MChat</Text>
       </View>
 
+      <Text
+        style={{
+          color: "#F5EEEE",
+          fontSize: 40,
+          fontWeight: "bold",
+        }}
+      >
+        Đăng ký
+      </Text>
+
       <TextInput
-        style={{ ...styles.inputSdt, color: "#000" }}
+        style={{ ...styles.inputHoTen, color: "#000" }}
+        placeholder="Họ và Tên"
+      />
+      <TextInput
+        style={{ ...styles.inputSDT, color: "#000" }}
         placeholder="Số điện thoại"
       />
       <TextInput
         style={{ ...styles.inputPass, color: "#000" }}
         placeholder="Mật khẩu"
       />
-      <Text style={{ color: "#0B0B0B", fontSize: 14, marginTop: 20 }}>
-        Quên mật khẩu?
-      </Text>
-      <Pressable
-        onPress={() => {
-          navigation.navigate("HomeScreen");
-        }}
-        style={styles.btnLogin}
-      >
-        <Text style={styles.txtLogin}>Đăng Nhập</Text>
+      <TextInput
+        style={{ ...styles.inputConfirmPass, color: "#000" }}
+        placeholder="Nhập lại mật khẩu"
+      />
+
+      <Pressable style={styles.btnSignUp}>
+        <Text style={styles.txtSignUp}>Đăng Ký</Text>
       </Pressable>
     </SafeAreaView>
   );
 };
 
-export default LoginForm;
+export default SignUpForm;
 
 const styles = StyleSheet.create({
   container: {
@@ -79,7 +88,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(217, 217, 217, 0.50)",
     marginTop: 48,
   },
-  inputSdt: {
+  inputHoTen: {
     width: 318,
     height: 46,
     backgroundColor: "rgba(255, 255, 255, 0.80)",
@@ -88,6 +97,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingLeft: 10,
     marginTop: 36,
+  },
+  inputSDT: {
+    width: 318,
+    height: 46,
+    backgroundColor: "rgba(255, 255, 255, 0.80)",
+    color: "#BCB2B2",
+    fontSize: 16,
+    borderRadius: 10,
+    paddingLeft: 10,
+    marginTop: 30,
   },
   inputPass: {
     width: 318,
@@ -97,9 +116,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderRadius: 10,
     paddingLeft: 10,
-    marginTop: 36,
+    marginTop: 30,
   },
-  btnLogin: {
+  inputConfirmPass: {
+    width: 318,
+    height: 46,
+    backgroundColor: "rgba(255, 255, 255, 0.80)",
+    color: "#BCB2B2",
+    fontSize: 16,
+    borderRadius: 10,
+    paddingLeft: 10,
+    marginTop: 30,
+  },
+  btnSignUp: {
     width: 200,
     height: 50,
     borderRadius: 13,
@@ -108,7 +137,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 40,
   },
-  txtLogin: {
+  txtSignUp: {
     color: "#FFF",
     fontSize: 24,
     fontWeight: "bold",
