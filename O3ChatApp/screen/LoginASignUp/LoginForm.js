@@ -41,7 +41,12 @@ const LoginForm = ({ navigation }) => {
       <Text style={{ color: "#0B0B0B", fontSize: 14, marginTop: 20 }}>
         Quên mật khẩu?
       </Text>
-      <Pressable style={styles.btnLogin}>
+      <Pressable
+        onPress={() => {
+          navigation.navigate("HomeScreen");
+        }}
+        style={styles.btnLogin}
+      >
         <Text style={styles.txtLogin}>Đăng Nhập</Text>
       </Pressable>
     </SafeAreaView>
