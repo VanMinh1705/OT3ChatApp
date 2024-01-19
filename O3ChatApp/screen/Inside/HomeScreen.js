@@ -4,11 +4,13 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Icon from "react-native-vector-icons/AntDesign";
 import ChatSceen from "./ChatSceen";
 import PhoneBookScreen from "./PhoneBookScreen";
-import UserScreen from "./UserScreen";
+import PersonalScreen from "./PersonalScreen";
 
 const Tab = createBottomTabNavigator();
 
-const HomeScreen = () => {
+const HomeScreen = ({ route }) => {
+  const { user } = route.params;
+
   return (
     <Tab.Navigator
       initialRouteName="ChatSceen"
@@ -41,9 +43,10 @@ const HomeScreen = () => {
             <Icon size={size} name="user" color={color} />
           ),
         }}
-        name="UserScreen"
-        component={UserScreen}
-      />
+        name="PersonalScreen"
+      >
+        {() => <PersonalScreen user={user} />}
+      </Tab.Screen>
     </Tab.Navigator>
   );
 };

@@ -19,7 +19,7 @@ import { LinearGradient } from "expo-linear-gradient";
 export const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } =
   Dimensions.get("window");
 
-const UserSceen = () => {
+const UserSceen = ({ navigation, user }) => {
   const [fontsLoaded] = useFonts({
     "keaniaone-regular": require("../../assets/fonts/KeaniaOne-Regular.ttf"),
   });
@@ -57,29 +57,45 @@ const UserSceen = () => {
           <IconAnt name="setting" size={30} color={"#fff"} />
         </View>
       </SafeAreaView>
-        <View style={styles.paddingForHeader} />
-        <View style={styles.viewContent}>
-          <LinearGradient
-            // Background Linear Gradient
-            colors={["#4AD8C7", "#B728A9"]}
-            style={styles.background}
+      <View style={styles.paddingForHeader} />
+      <View style={styles.viewContent}>
+        <LinearGradient
+          // Background Linear Gradient
+          colors={["#4AD8C7", "#B728A9"]}
+          style={styles.background}
+        />
+        <View style={styles.infoPersonal}>
+          <Image
+            style={{ width: 50, height: 50, borderRadius: 25, marginLeft: 10 }}
+            source={{ uri: user?.avatarUser }}
           />
-          <View style={styles.infoPersonal}>
-            <Text>Info personal here</Text>
+          <View style={{ marginLeft: 10 }}>
+            <Text style={styles.txtUser}>{user?.hoTen}</Text>
+            <Pressable>
+              <Text style={styles.txtViewUser}>Xem trang cá nhân</Text>
+            </Pressable>
           </View>
-
-
-          <Pressable style={styles.securityAccount}>
-          <Icon name="security" size={30} color={"blue"} style={{marginLeft:10,marginTop:10}}/>
-          <Text style={styles.txtSecurity}>Tài khoản và bảo mật</Text>
-          </Pressable>
- 
-
-          <Pressable style={styles.Privacy}>
-          <IconAnt name="lock" size={30} style={{marginLeft:10,marginTop:10}} />
-          <Text style={styles.txtPrivacy}>Quyền riêng tư</Text>
-          </Pressable>
         </View>
+
+        <Pressable style={styles.securityAccount}>
+          <Icon
+            name="security"
+            size={30}
+            color={"#000"}
+            style={{ marginLeft: 10, marginTop: 10 }}
+          />
+          <Text style={styles.txtSecurity}>Tài khoản và bảo mật</Text>
+        </Pressable>
+
+        <Pressable style={styles.Privacy}>
+          <IconAnt
+            name="lock"
+            size={30}
+            style={{ marginLeft: 10, marginTop: 10 }}
+          />
+          <Text style={styles.txtPrivacy}>Quyền riêng tư</Text>
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 };
@@ -98,7 +114,7 @@ const styles = StyleSheet.create({
   },
   header: {
     width: "100%",
-    height:"100%",
+    height: "100%",
     backgroundColor: "#03c6fc",
     position: "absolute",
   },
@@ -114,35 +130,50 @@ const styles = StyleSheet.create({
     height: "100%",
     backgroundColor: "#fff",
   },
-  infoPersonal:{
+  infoPersonal: {
     width: "100%",
     height: 80,
     fontSize: 16,
     paddingLeft: 10,
     borderWidth: 1,
-    backgroundColor: 'white',
+    backgroundColor: "white",
+    flexDirection: "row",
+    borderColor: "#ccc",
+    alignItems: "center",
   },
-  securityAccount:{
-    flexDirection: 'row',
+  securityAccount: {
+    flexDirection: "row",
     marginTop: 10,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     width: "100%",
     height: 50,
+    borderWidth: 1,
+    borderColor: "#ccc",
   },
-  txtSecurity:{
-    marginLeft:10,
-    fontSize:20,
-    marginTop:12,
+  txtSecurity: {
+    marginLeft: 10,
+    fontSize: 20,
+    marginTop: 12,
   },
-  Privacy:{
-    flexDirection: 'row',
-    backgroundColor: 'white',
+  Privacy: {
+    flexDirection: "row",
+    backgroundColor: "white",
     width: "100%",
     height: 50,
+    borderWidth: 1,
+    borderColor: "#ccc",
   },
-  txtPrivacy:{
-    marginLeft:10,
-    fontSize:20,
-    marginTop:12,
-  }
+  txtPrivacy: {
+    marginLeft: 10,
+    fontSize: 20,
+    marginTop: 12,
+  },
+  txtUser: {
+    color: "#000",
+    fontSize: 18,
+  },
+  txtViewUser: {
+    color: "#696969",
+    fontSize: 16,
+  },
 });

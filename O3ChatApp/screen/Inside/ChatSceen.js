@@ -7,6 +7,7 @@ import {
   View,
   Image,
   TextInput,
+  Pressable,
 } from "react-native";
 import React from "react";
 import { Dimensions } from "react-native";
@@ -17,7 +18,7 @@ import { LinearGradient } from "expo-linear-gradient";
 export const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } =
   Dimensions.get("window");
 
-const ChatSceen = () => {
+const ChatSceen = ({ navigation }) => {
   const [fontsLoaded] = useFonts({
     "keaniaone-regular": require("../../assets/fonts/KeaniaOne-Regular.ttf"),
   });
@@ -54,7 +55,13 @@ const ChatSceen = () => {
               borderWidth: 1,
             }}
           />
-          <IconAnt name="qrcode" size={30} color={"#fff"} />
+          <Pressable
+            onPress={() => {
+              navigation.navigate("QRScanner");
+            }}
+          >
+            <IconAnt name="qrcode" size={30} color={"#fff"} />
+          </Pressable>
           <IconAnt name="plus" size={30} color={"#fff"} />
         </View>
         <View style={styles.logo}>
@@ -72,7 +79,7 @@ const ChatSceen = () => {
             colors={["#4AD8C7", "#B728A9"]}
             style={styles.background}
           />
-          <Text>Xin chaopf</Text>
+          {/* <Text>Viet code ở đây  </Text> */}
         </View>
         <View style={styles.scrollViewContent} />
       </ScrollView>

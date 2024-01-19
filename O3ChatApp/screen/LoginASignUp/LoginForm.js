@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import {
   Image,
   Pressable,
@@ -6,8 +7,8 @@ import {
   Text,
   TextInput,
   View,
+  Alert,
 } from "react-native";
-import React from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFonts } from "expo-font";
 
@@ -16,13 +17,41 @@ const LoginForm = ({ navigation }) => {
     "keaniaone-regular": require("../../assets/fonts/KeaniaOne-Regular.ttf"),
   });
 
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleLogin = async () => {
+    try {
+      const response = await fetch(
+        "https://650424bdc8869921ae2491fd.mockapi.io/users"
+      );
+
+      if (!response.ok) {
+        throw new Error("Network request failed");
+      }
+
+      const userData = await response.json();
+      const user = userData[0];
+
+      if (user.soDT === phoneNumber && user.matKhau === password) {
+        // Authentication successful
+        navigation.navigate("HomeScreen", { user });
+      } else {
+        // Authentication failed
+        Alert.alert("Login Failed", "Invalid phone number or password");
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  };
+
   if (!fontsLoaded) {
     return undefined;
   }
+
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        // Background Linear Gradient
         colors={["#4AD8C7", "#B728A9"]}
         style={styles.background}
       />
@@ -33,20 +62,26 @@ const LoginForm = ({ navigation }) => {
       <TextInput
         style={{ ...styles.inputSdt, color: "#000" }}
         placeholder="Số điện thoại"
+        onChangeText={(text) => setPhoneNumber(text)}
+        value={phoneNumber}
       />
       <TextInput
         style={{ ...styles.inputPass, color: "#000" }}
         placeholder="Mật khẩu"
+        secureTextEntry
+        onChangeText={(text) => setPassword(text)}
+        value={password}
       />
-      <Text style={{ color: "#0B0B0B", fontSize: 14, marginTop: 20 }}>
+      <Text
+        style={{ color: "#0B0B0B", fontSize: 14, marginTop: 20 }}
+        onPress={() => {
+          // Implement the logic for handling forgotten password
+          Alert.alert("Forgot Password", "Feature coming soon");
+        }}
+      >
         Quên mật khẩu?
       </Text>
-      <Pressable
-        onPress={() => {
-          navigation.navigate("HomeScreen");
-        }}
-        style={styles.btnLogin}
-      >
+      <Pressable onPress={handleLogin} style={styles.btnLogin}>
         <Text style={styles.txtLogin}>Đăng Nhập</Text>
       </Pressable>
     </SafeAreaView>

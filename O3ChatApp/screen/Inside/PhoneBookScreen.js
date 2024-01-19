@@ -8,7 +8,7 @@ const PhoneBookScreen = () => {
         onPress={() => navigation.navigate("Home")}
         style={{ fontSize: 26, fontWeight: "bold" }}
       >
-        Details Screen
+        Trang danh bạ
       </Text>
     </View>
   );
