@@ -31,9 +31,13 @@ const LoginForm = ({ navigation }) => {
       }
 
       const userData = await response.json();
-      const user = userData[0];
 
-      if (user.soDT === phoneNumber && user.matKhau === password) {
+      // Find the user with matching phone number and password
+      const user = userData.find(
+        (u) => u.soDT === phoneNumber && u.matKhau === password
+      );
+
+      if (user) {
         // Authentication successful
         navigation.navigate("HomeScreen", { user });
       } else {

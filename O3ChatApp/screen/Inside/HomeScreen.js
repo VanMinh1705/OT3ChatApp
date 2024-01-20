@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Alert, BackHandler, StyleSheet, Text, View } from "react-native";
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Icon from "react-native-vector-icons/AntDesign";
@@ -8,8 +8,44 @@ import PersonalScreen from "./PersonalScreen";
 
 const Tab = createBottomTabNavigator();
 
-const HomeScreen = ({ route }) => {
+const HomeScreen = ({ navigation, route }) => {
   const { user } = route.params;
+
+  const handleBackPress = () => {
+    Alert.alert(
+      "Exit",
+      "Về trang đăng nhập?",
+      [
+        {
+          text: "Cancel",
+          onPress: () => {
+            console.log("Cancel Pressed");
+          },
+          style: "cancel",
+        },
+        {
+          text: "Ok",
+          onPress: () => {
+            navigation.navigate("LoginASign");
+          },
+        },
+      ],
+      {
+        cancelable: false,
+      }
+    );
+    return true;
+  };
+  React.useEffect(() => {
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      handleBackPress
+    );
+
+    return () => {
+      backHandler.remove();
+    };
+  }, [navigation]);
 
   return (
     <Tab.Navigator

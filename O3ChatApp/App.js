@@ -53,11 +53,10 @@ const LoginASign = ({ navigation }) => {
       handleBackPress();
     });
 
-    // Ensure that you unsubscribe from the event when the component is unmounted
     return () => {
       unsubscribe();
     };
-  }, [navigation]); // <-- Make sure to include `navigation` in the dependency array
+  }, [navigation]);
 
   if (!fontsLoaded) {
     return null;
