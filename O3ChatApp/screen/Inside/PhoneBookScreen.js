@@ -1,7 +1,7 @@
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
 import React, { useState } from "react";
 import FriendScreen from "./FriendScreen";
-import ChatSceen from "./ChatSceen";
+import ChatSceen, { WINDOW_HEIGHT } from "./ChatSceen";
 import GroupScreen from "./GroupScreen";
 
 const PhoneBookScreen = () => {
@@ -16,36 +16,25 @@ const PhoneBookScreen = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, alignItems: "center" }}>
-      <View
-        style={{
-          width: "100%",
-          height: 50,
-          alignItems: "center",
-          backgroundColor: "#FFFFFF",
-          flexDirection: "row",
-          justifyContent: "space-around",
-        }}
-      >
+    <SafeAreaView style={{ flex: 1 }}>
+      <View style={styles.tabContainer}>
         <Pressable
-          onPress={() => {
-            setSelect(1);
-          }}
-          style={{}}
+          style={[styles.tabItem, select === 1 && styles.selectedTab]}
+          onPress={() => setSelect(1)}
         >
-          <Text style={{fontSize:20}}>Bạn bè</Text>
+          <Text style={styles.tabText}>Bạn bè</Text>
         </Pressable>
         <Pressable
-          onPress={() => {
-            setSelect(2);
-          }}
-          style={{}}
+          style={[styles.tabItem, select === 2 && styles.selectedTab]}
+          onPress={() => setSelect(2)}
         >
-          <Text style={{fontSize:20}}>Nhóm</Text>
+          <Text style={styles.tabText}>Nhóm</Text>
         </Pressable>
       </View>
       <View style={styles.dividerVertical} />
-      <SafeAreaView>{renderScreen()}</SafeAreaView>
+      <SafeAreaView style={styles.screenContainer}>
+        {select === 1 ? <FriendScreen /> : <GroupScreen />}
+      </SafeAreaView>
     </SafeAreaView>
   );
 };
@@ -53,9 +42,31 @@ const PhoneBookScreen = () => {
 export default PhoneBookScreen;
 
 const styles = StyleSheet.create({
+  tabContainer: {
+    flexDirection: "row",
+    height: 50,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "space-around",
+    alignItems: "center",
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    height: "100%",
+  },
+  selectedTab: {
+    backgroundColor: "#4AD8C7", // Change to your selected tab color
+  },
+  tabText: {
+    fontSize: 20,
+  },
   dividerVertical: {
     width: "100%",
     height: 1,
-    backgroundColor: '#000000',
+    backgroundColor: "#000000",
+  },
+  screenContainer: {
+    flex: 1,
   },
 });
