@@ -99,8 +99,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
     alignItems: "center",
+<<<<<<< HEAD
     // backgroundColor: "transparent",
     // backgroundImage: "linear-gradient(180deg, #4AD8C7, #B728A9)", // Định nghĩa linear gradient bằng cách sử dụng backgroundImage
+=======
+>>>>>>> 77219f6b0b11d7883cead69f6a3a566262c3edf7
   },
   background: {
     position: "absolute",
