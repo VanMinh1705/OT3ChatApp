@@ -11,6 +11,9 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { DynamoDB } from "aws-sdk";
 import { useFonts } from "expo-font";
+import { config } from 'dotenv';
+
+config(); // Load environment variables from .env
 
 const SignUpForm = ({ navigation }) => {
   const [hoTen, setHoTen] = useState("");
@@ -40,7 +43,11 @@ const SignUpForm = ({ navigation }) => {
       }
 
    
-  
+      const dynamoDB = new DynamoDB.DocumentClient({
+        region: process.env.REGION,
+        accessKeyId: process.env.ACCESS_KEY_ID,
+        secretAccessKey: process.env.SECRET_ACCESS_KEY,
+      });
       
       // Tạo item để ghi vào DynamoDB
       const params = {
