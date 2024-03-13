@@ -7,10 +7,6 @@ import {
   SafeAreaView,
   StyleSheet,
   Text,
-<<<<<<< HEAD
-  TextInput,
-=======
->>>>>>> 77219f6b0b11d7883cead69f6a3a566262c3edf7
   View,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -22,17 +18,8 @@ import LoginForm from "./screen/LoginASignUp/LoginForm";
 import SignUpForm from "./screen/LoginASignUp/SignUpForm";
 import HomeScreen from "./screen/Inside/HomeScreen";
 import QRScanner from "./screen/Inside/QRScanner";
-<<<<<<< HEAD
-import SignUpForm from "./screen/LoginASignUp/SignUpForm";
-import HomeScreen from "./screen/Inside/HomeScreen";
-import QRScanner from "./screen/Inside/QRScanner";
 
 const LoginASign = ({ navigation }) => {
-const LoginASign = ({ navigation }) => {
-=======
-
-const LoginASign = ({ navigation }) => {
->>>>>>> 77219f6b0b11d7883cead69f6a3a566262c3edf7
   const [fontsLoaded] = useFonts({
     "keaniaone-regular": require("./assets/fonts/KeaniaOne-Regular.ttf"),
   });
@@ -71,48 +58,8 @@ const LoginASign = ({ navigation }) => {
     };
   }, [navigation]);
 
-<<<<<<< HEAD
-  const handleBackPress = () => {
-    Alert.alert(
-      "Exit App",
-      "Thoát ứng dụng?",
-      [
-        {
-          text: "Cancel",
-          onPress: () => {
-            console.log("Cancel Pressed");
-          },
-          style: "cancel",
-        },
-        {
-          text: "Ok",
-          onPress: () => BackHandler.exitApp(),
-        },
-      ],
-      {
-        cancelable: false,
-      }
-    );
-    return true;
-  };
-  React.useEffect(() => {
-    const unsubscribe = navigation.addListener("beforeRemove", (e) => {
-      e.preventDefault();
-      handleBackPress();
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, [navigation]);
-
   if (!fontsLoaded) {
     return null;
-    return null;
-=======
-  if (!fontsLoaded) {
-    return null;
->>>>>>> 77219f6b0b11d7883cead69f6a3a566262c3edf7
   }
 
   return (
@@ -123,17 +70,9 @@ const LoginASign = ({ navigation }) => {
         style={styles.background}
       />
 
-<<<<<<< HEAD
-
       <View style={styles.logo}>
         <Text style={styles.txtLogo}>4MChat</Text>
       </View>
-
-=======
-      <View style={styles.logo}>
-        <Text style={styles.txtLogo}>4MChat</Text>
-      </View>
->>>>>>> 77219f6b0b11d7883cead69f6a3a566262c3edf7
       <Pressable
         onPress={() => {
           navigation.navigate("LoginForm");
@@ -148,15 +87,6 @@ const LoginASign = ({ navigation }) => {
         }}
         style={styles.btnSignUp}
       >
-<<<<<<< HEAD
-      <Pressable
-        onPress={() => {
-          navigation.navigate("SignUpForm");
-        }}
-        style={styles.btnSignUp}
-      >
-=======
->>>>>>> 77219f6b0b11d7883cead69f6a3a566262c3edf7
         <Text style={styles.txtSignUp}>Đăng Ký</Text>
       </Pressable>
     </SafeAreaView>
@@ -173,10 +103,6 @@ export default function App() {
         screenOptions={{ headerShown: false }}
       >
         <Stack.Screen
-<<<<<<< HEAD
-        <Stack.Screen
-=======
->>>>>>> 77219f6b0b11d7883cead69f6a3a566262c3edf7
           name="AnimationBackground"
           component={AnimationBackground}
         />
@@ -185,24 +111,10 @@ export default function App() {
           name="LoginASign"
           component={LoginASign}
         />
-<<<<<<< HEAD
-        <Stack.Screen
-          options={{ headerLeft: null }}
-          name="LoginASign"
-          component={LoginASign}
-        />
-=======
->>>>>>> 77219f6b0b11d7883cead69f6a3a566262c3edf7
         <Stack.Screen name="LoginForm" component={LoginForm} />
         <Stack.Screen name="SignUpForm" component={SignUpForm} />
         <Stack.Screen name="HomeScreen" component={HomeScreen} />
         <Stack.Screen name="QRScanner" component={QRScanner} />
-<<<<<<< HEAD
-        <Stack.Screen name="SignUpForm" component={SignUpForm} />
-        <Stack.Screen name="HomeScreen" component={HomeScreen} />
-        <Stack.Screen name="QRScanner" component={QRScanner} />
-=======
->>>>>>> 77219f6b0b11d7883cead69f6a3a566262c3edf7
       </Stack.Navigator>
     </NavigationContainer>
   );
@@ -213,11 +125,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
     alignItems: "center",
-<<<<<<< HEAD
-    // backgroundColor: "transparent",
-    // backgroundImage: "linear-gradient(180deg, #4AD8C7, #B728A9)", // Định nghĩa linear gradient bằng cách sử dụng backgroundImage
-=======
->>>>>>> 77219f6b0b11d7883cead69f6a3a566262c3edf7
   },
   background: {
     position: "absolute",

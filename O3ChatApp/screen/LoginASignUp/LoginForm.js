@@ -1,16 +1,17 @@
 import React, { useState } from "react";
 import {
-  Image,
-  Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   View,
+  Pressable,
   Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFonts } from "expo-font";
+import { DynamoDB } from "aws-sdk";
+import { ACCESS_KEY_ID, SECRET_ACCESS_KEY, REGION } from "@env";
 
 const LoginForm = ({ navigation }) => {
   const [fontsLoaded] = useFonts({
@@ -22,28 +23,35 @@ const LoginForm = ({ navigation }) => {
 
   const handleLogin = async () => {
     try {
-      const response = await fetch(
-        "https://650424bdc8869921ae2491fd.mockapi.io/users"
-      );
+      const dynamoDB = new DynamoDB.DocumentClient({
+        region: REGION,
+        accessKeyId: ACCESS_KEY_ID,
+        secretAccessKey: SECRET_ACCESS_KEY,
+      });
 
-      if (!response.ok) {
-        throw new Error("Network request failed");
-      }
+      const params = {
+        TableName: "Users",
+        Key: {
+          soDienThoai: phoneNumber,
+        },
+      };
 
-      const userData = await response.json();
+      const userData = await dynamoDB.get(params).promise();
 
-      // Find the user with matching phone number and password
-      const user = userData.find(
-        (u) => u.soDT === phoneNumber && u.matKhau === password
-      );
-
-      if (user) {
-        // Authentication successful
-        navigation.navigate("HomeScreen", { user });
-      } else {
-        // Authentication failed
+      if (!userData.Item) {
+        // User not found
         Alert.alert("Login Failed", "Invalid phone number or password");
+        return;
       }
+
+      // Check if password matches
+      if (userData.Item.matKhau !== password) {
+        Alert.alert("Login Failed", "Invalid phone number or password");
+        return;
+      }
+
+      // Authentication successful
+      navigation.navigate("HomeScreen", { user: userData.Item });
     } catch (error) {
       console.error("Error fetching data:", error);
     }
@@ -99,10 +107,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
     alignItems: "center",
-
-    // backgroundColor: "transparent",
-    // backgroundImage: "linear-gradient(180deg, #4AD8C7, #B728A9)", // Định nghĩa linear gradient bằng cách sử dụng backgroundImage
-
   },
   background: {
     position: "absolute",

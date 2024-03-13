@@ -11,9 +11,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { DynamoDB } from "aws-sdk";
 import { useFonts } from "expo-font";
-import { config } from 'dotenv';
-
-config(); // Load environment variables from .env
+import { ACCESS_KEY_ID, SECRET_ACCESS_KEY, REGION } from "@env";
 
 const SignUpForm = ({ navigation }) => {
   const [hoTen, setHoTen] = useState("");
@@ -27,12 +25,20 @@ const SignUpForm = ({ navigation }) => {
         Alert.alert("Lỗi", "Mật khẩu nhập lại không khớp");
         return;
       }
+
       const checkParams = {
         TableName: "Users",
         Key: {
           soDienThoai: soDienThoai,
         },
       };
+
+      // Tạo đối tượng dynamoDB ở đây trước khi kiểm tra
+      const dynamoDB = new DynamoDB.DocumentClient({
+        region: REGION,
+        accessKeyId: ACCESS_KEY_ID,
+        secretAccessKey: SECRET_ACCESS_KEY,
+      });
 
       const checkResult = await dynamoDB.get(checkParams).promise();
 
@@ -42,13 +48,6 @@ const SignUpForm = ({ navigation }) => {
         return;
       }
 
-   
-      const dynamoDB = new DynamoDB.DocumentClient({
-        region: process.env.REGION,
-        accessKeyId: process.env.ACCESS_KEY_ID,
-        secretAccessKey: process.env.SECRET_ACCESS_KEY,
-      });
-      
       // Tạo item để ghi vào DynamoDB
       const params = {
         TableName: "Users",
@@ -62,6 +61,7 @@ const SignUpForm = ({ navigation }) => {
       // Ghi dữ liệu vào DynamoDB
       await dynamoDB.put(params).promise();
       Alert.alert("Đăng ký thành công");
+      navigation.navigate("LoginForm");
     } catch (error) {
       console.error("Lỗi khi đăng ký:", error);
       Alert.alert("Đăng ký thất bại");
@@ -114,7 +114,7 @@ const SignUpForm = ({ navigation }) => {
         secureTextEntry={true}
         onChangeText={(text) => setNhapLaiMatKhau(text)}
       />
-<Pressable style={styles.btnSignUp} onPress={signUp}>
+      <Pressable style={styles.btnSignUp} onPress={signUp}>
         <Text style={styles.txtSignUp}>Đăng Ký</Text>
       </Pressable>
     </SafeAreaView>
