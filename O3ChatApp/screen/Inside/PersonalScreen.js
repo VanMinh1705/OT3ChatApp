@@ -8,24 +8,127 @@ import {
   Image,
   TextInput,
   Pressable,
+  Alert,
 } from "react-native";
 import React from "react";
 import { Dimensions } from "react-native";
 import IconAnt from "react-native-vector-icons/AntDesign";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import * as ImagePicker from "expo-image-picker";
+import * as Permissions from "expo-permissions";
 import { useFonts } from "expo-font";
 import { LinearGradient } from "expo-linear-gradient";
+import { DynamoDB, S3 } from "aws-sdk";
+import {
+  ACCESS_KEY_ID,
+  SECRET_ACCESS_KEY,
+  REGION,
+  S3_BUCKET_NAME,
+  DYNAMODB_TABLE_NAME,
+} from "@env";
 
+import { useState } from "react";
 export const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } =
   Dimensions.get("window");
 
-const UserSceen = ({ navigation, user }) => {
+const UserScreen = ({ navigation, user }) => {
   const [fontsLoaded] = useFonts({
     "keaniaone-regular": require("../../assets/fonts/KeaniaOne-Regular.ttf"),
   });
-  if (!fontsLoaded) {
-    return null;
-  }
+  const [avatarUri, setAvatarUri] = useState(user.avatarUser);
+
+  const pickAvatar = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      alert("Permission denied to access media library");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+
+    if (!result.cancelled) {
+      Alert.alert(
+        "Confirmation",
+        "Do you want to select this image?",
+        [
+          {
+            text: "Yes",
+            onPress: () => uploadAvatar(result.uri),
+          },
+          {
+            text: "No",
+            style: "cancel",
+          },
+        ],
+        { cancelable: false }
+      );
+    }
+  };
+
+  const uploadAvatar = async (uri) => {
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const fileType = uri.split(".").pop();
+      const fileName = `${user.soDienThoai}_${Date.now()}.${fileType}`;
+
+      const s3 = new S3({
+        region: REGION,
+        accessKeyId: ACCESS_KEY_ID,
+        secretAccessKey: SECRET_ACCESS_KEY,
+      });
+
+      const paramsS3 = {
+        Bucket: "minh22222",
+        Key: fileName,
+        Body: blob,
+        ContentType: `image/${fileType}`,
+        ContentLength: blob.size,
+      };
+
+      const data = await s3.upload(paramsS3).promise();
+
+      updateUserAvatar(data.Location);
+    } catch (error) {
+      console.error("Error uploading avatar:", error);
+      Alert.alert("Error", "Failed to upload avatar");
+    }
+  };
+
+  const updateUserAvatar = async (avatarUrl) => {
+    try {
+      const dynamoDB = new DynamoDB.DocumentClient({
+        region: REGION,
+        accessKeyId: ACCESS_KEY_ID,
+        secretAccessKey: SECRET_ACCESS_KEY,
+      });
+
+      const paramsDynamoDb = {
+        TableName: DYNAMODB_TABLE_NAME,
+        Key: { soDienThoai: user.soDienThoai },
+        UpdateExpression: "set avatarUser = :avatar",
+        ExpressionAttributeValues: {
+          ":avatar": avatarUrl,
+        },
+        ReturnValues: "UPDATED_NEW",
+      };
+
+      await dynamoDB.update(paramsDynamoDb).promise();
+
+      setAvatarUri(avatarUrl);
+
+      Alert.alert("Success", "Avatar updated successfully");
+    } catch (error) {
+      console.error("Error updating user data:", error);
+      Alert.alert("Error", "Failed to update user data");
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <SafeAreaView>
@@ -47,7 +150,7 @@ const UserSceen = ({ navigation, user }) => {
             style={{
               width: 235,
               height: 30,
-              color: "#000", // This is the text color when there is input
+              color: "#000",
               fontSize: 16,
               borderRadius: 10,
               paddingLeft: 10,
@@ -60,19 +163,29 @@ const UserSceen = ({ navigation, user }) => {
       <View style={styles.paddingForHeader} />
       <View style={styles.viewContent}>
         <LinearGradient
-          // Background Linear Gradient
           colors={["#4AD8C7", "#B728A9"]}
           style={styles.background}
         />
         <View style={styles.infoPersonal}>
-          <Image
-            style={{ width: 50, height: 50, borderRadius: 25, marginLeft: 10 }}
-            source={{ uri: user?.avatarUser }}
-          />
+          <Pressable onPress={pickAvatar}>
+            <Image
+              style={{
+                width: 50,
+                height: 50,
+                borderRadius: 25,
+                marginLeft: 10,
+              }}
+              source={
+                avatarUri
+                  ? { uri: avatarUri }
+                  : require("../../assets/img/iconFriendScreen/icon-list.png")
+              }
+            />
+          </Pressable>
           <View style={{ marginLeft: 10 }}>
             <Text style={styles.txtUser}>{user?.hoTen}</Text>
-            <Pressable>
-              <Text style={styles.txtViewUser}>Xem trang cá nhân</Text>
+            <Pressable onPress={pickAvatar}>
+              <Text style={styles.txtViewUser}>Cập nhật ảnh đại diện</Text>
             </Pressable>
           </View>
         </View>
@@ -99,8 +212,7 @@ const UserSceen = ({ navigation, user }) => {
     </SafeAreaView>
   );
 };
-
-export default UserSceen;
+export default UserScreen;
 
 const styles = StyleSheet.create({
   container: {

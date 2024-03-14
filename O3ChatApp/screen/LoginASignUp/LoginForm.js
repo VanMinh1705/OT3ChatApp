@@ -18,11 +18,21 @@ const LoginForm = ({ navigation }) => {
     "keaniaone-regular": require("../../assets/fonts/KeaniaOne-Regular.ttf"),
   });
 
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [password, setPassword] = useState("");
+  const [soDienThoai, setSoDienThoai] = useState("");
+  const [matKhau, setMatKhau] = useState("");
 
   const handleLogin = async () => {
     try {
+      if (!soDienThoai || !matKhau) {
+        Alert.alert("Lỗi", "Vui lòng điền số điện thoại và mật khẩu");
+        return;
+      }
+
+      // Kiểm tra số điện thoại có 10 số và bắt đầu bằng số 0
+      if (!soDienThoai.match(/^(0)[0-9]{9}$/)) {
+        Alert.alert("Lỗi", "Số điện thoại không hợp lệ");
+        return;
+      }
       const dynamoDB = new DynamoDB.DocumentClient({
         region: REGION,
         accessKeyId: ACCESS_KEY_ID,
@@ -32,7 +42,7 @@ const LoginForm = ({ navigation }) => {
       const params = {
         TableName: "Users",
         Key: {
-          soDienThoai: phoneNumber,
+          soDienThoai: soDienThoai,
         },
       };
 
@@ -40,13 +50,16 @@ const LoginForm = ({ navigation }) => {
 
       if (!userData.Item) {
         // User not found
-        Alert.alert("Login Failed", "Invalid phone number or password");
+        Alert.alert(
+          "Login Failed",
+          "Số điện thoại hoặc mật khẩu không tồn tại"
+        );
         return;
       }
 
       // Check if password matches
-      if (userData.Item.matKhau !== password) {
-        Alert.alert("Login Failed", "Invalid phone number or password");
+      if (userData.Item.matKhau !== matKhau) {
+        Alert.alert("Login Failed", "Mật khẩu không chính xác");
         return;
       }
 
@@ -74,15 +87,15 @@ const LoginForm = ({ navigation }) => {
       <TextInput
         style={{ ...styles.inputSdt, color: "#000" }}
         placeholder="Số điện thoại"
-        onChangeText={(text) => setPhoneNumber(text)}
-        value={phoneNumber}
+        onChangeText={(text) => setSoDienThoai(text)}
+        value={soDienThoai}
       />
       <TextInput
         style={{ ...styles.inputPass, color: "#000" }}
         placeholder="Mật khẩu"
         secureTextEntry
-        onChangeText={(text) => setPassword(text)}
-        value={password}
+        onChangeText={(text) => setMatKhau(text)}
+        value={matKhau}
       />
       <Text
         style={{ color: "#0B0B0B", fontSize: 14, marginTop: 20 }}

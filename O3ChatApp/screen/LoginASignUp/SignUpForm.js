@@ -18,12 +18,74 @@ const SignUpForm = ({ navigation }) => {
   const [soDienThoai, setSoDienThoai] = useState("");
   const [matKhau, setMatKhau] = useState("");
   const [nhapLaiMatKhau, setNhapLaiMatKhau] = useState("");
+  const [errors, setErrors] = useState({
+    hoTen: "",
+    soDienThoai: "",
+    matKhau: "",
+    nhapLaiMatKhau: "",
+  });
 
   const signUp = async () => {
     try {
-      if (matKhau !== nhapLaiMatKhau) {
-        Alert.alert("Lỗi", "Mật khẩu nhập lại không khớp");
+      // Kiểm tra số điện thoại
+      if (!soDienThoai) {
+        setErrors((prevErrors) => ({
+          ...prevErrors,
+          soDienThoai: "Số điện thoại không được để trống",
+        }));
         return;
+      } else if (soDienThoai.length !== 10) {
+        setErrors((prevErrors) => ({
+          ...prevErrors,
+          soDienThoai: "Số điện thoại phải có 10 số",
+        }));
+        return;
+      } else if (!soDienThoai.match(/^(0)[0-9]{9}$/)) {
+        setErrors((prevErrors) => ({
+          ...prevErrors,
+          soDienThoai: "Số điện thoại phải có định dạng số 0 đầu tiên",
+        }));
+        return;
+      } else {
+        setErrors((prevErrors) => ({
+          ...prevErrors,
+          soDienThoai: "",
+        }));
+      }
+
+      // Kiểm tra tên
+      if (!hoTen.match(/^[a-zA-ZÀ-ỹ ]+$/)) {
+        setErrors((prevErrors) => ({
+          ...prevErrors,
+          hoTen: "Tên không được rỗng",
+        }));
+        return;
+      } else {
+        setErrors((prevErrors) => ({
+          ...prevErrors,
+          hoTen: "",
+        }));
+      }
+
+      // Kiểm tra mật khẩu
+      if (!matKhau.match(/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[0-9a-zA-Z]+$/)) {
+        setErrors((prevErrors) => ({
+          ...prevErrors,
+          matKhau: "Mật khẩu phải có chữ hoa, chữ thường và số",
+        }));
+        return;
+      } else if (matKhau !== nhapLaiMatKhau) {
+        setErrors((prevErrors) => ({
+          ...prevErrors,
+          nhapLaiMatKhau: "Mật khẩu nhập lại không khớp",
+        }));
+        return;
+      } else {
+        setErrors((prevErrors) => ({
+          ...prevErrors,
+          matKhau: "",
+          nhapLaiMatKhau: "",
+        }));
       }
 
       const checkParams = {
@@ -33,7 +95,6 @@ const SignUpForm = ({ navigation }) => {
         },
       };
 
-      // Tạo đối tượng dynamoDB ở đây trước khi kiểm tra
       const dynamoDB = new DynamoDB.DocumentClient({
         region: REGION,
         accessKeyId: ACCESS_KEY_ID,
@@ -42,23 +103,21 @@ const SignUpForm = ({ navigation }) => {
 
       const checkResult = await dynamoDB.get(checkParams).promise();
 
-      // Nếu số điện thoại đã tồn tại, hiển thị cảnh báo và không thực hiện đăng ký
       if (checkResult.Item) {
         Alert.alert("Lỗi", "Số điện thoại đã được đăng ký trước đó");
         return;
       }
 
-      // Tạo item để ghi vào DynamoDB
       const params = {
         TableName: "Users",
         Item: {
           soDienThoai: soDienThoai,
           hoTen: hoTen,
           matKhau: matKhau,
+          avatarUser: "",
         },
       };
 
-      // Ghi dữ liệu vào DynamoDB
       await dynamoDB.put(params).promise();
       Alert.alert("Đăng ký thành công");
       navigation.navigate("LoginForm");
@@ -93,27 +152,54 @@ const SignUpForm = ({ navigation }) => {
         Đăng ký
       </Text>
       <TextInput
-        style={{ ...styles.inputHoTen, color: "#000" }}
+        style={{
+          ...styles.inputHoTen,
+          color: "#000",
+          borderColor: errors.hoTen ? "red" : "transparent",
+          borderWidth: errors.hoTen ? 1 : 0,
+        }}
         placeholder="Họ và Tên"
         onChangeText={(text) => setHoTen(text)}
       />
+      <Text style={{ color: "red", fontSize: 12 }}>{errors.hoTen}</Text>
       <TextInput
-        style={{ ...styles.inputSDT, color: "#000" }}
+        style={{
+          ...styles.inputSDT,
+          color: "#000",
+          borderColor: errors.soDienThoai ? "red" : "transparent",
+          borderWidth: errors.soDienThoai ? 1 : 0,
+        }}
         placeholder="Số điện thoại"
         onChangeText={(text) => setSoDienThoai(text)}
+        keyboardType="phone-pad" // Bàn phím chỉ hiển thị số
       />
+      <Text style={{ color: "red", fontSize: 12 }}>{errors.soDienThoai}</Text>
       <TextInput
-        style={{ ...styles.inputPass, color: "#000" }}
+        style={{
+          ...styles.inputPass,
+          color: "#000",
+          borderColor: errors.matKhau ? "red" : "transparent",
+          borderWidth: errors.matKhau ? 1 : 0,
+        }}
         placeholder="Mật khẩu"
         secureTextEntry={true}
         onChangeText={(text) => setMatKhau(text)}
       />
+      <Text style={{ color: "red", fontSize: 12 }}>{errors.matKhau}</Text>
       <TextInput
-        style={{ ...styles.inputConfirmPass, color: "#000" }}
+        style={{
+          ...styles.inputConfirmPass,
+          color: "#000",
+          borderColor: errors.nhapLaiMatKhau ? "red" : "transparent",
+          borderWidth: errors.nhapLaiMatKhau ? 1 : 0,
+        }}
         placeholder="Nhập lại mật khẩu"
         secureTextEntry={true}
         onChangeText={(text) => setNhapLaiMatKhau(text)}
       />
+      <Text style={{ color: "red", fontSize: 12 }}>
+        {errors.nhapLaiMatKhau}
+      </Text>
       <Pressable style={styles.btnSignUp} onPress={signUp}>
         <Text style={styles.txtSignUp}>Đăng Ký</Text>
       </Pressable>

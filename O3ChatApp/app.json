@@ -4,6 +4,7 @@
     "slug": "O3ChatApp",
     "version": "1.0.0",
     "orientation": "portrait",
+    "permissions": ["CAMERA", "CAMERA_ROLL"], 
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
@@ -20,7 +21,8 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#ffffff",
+        "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"]
       }
     },
     "web": {

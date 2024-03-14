@@ -1,32 +1,48 @@
 import React, { useState, useEffect } from "react";
-import { Text, View, StyleSheet, Button } from "react-native";
+import { Text, View, StyleSheet, Button, BackHandler } from "react-native";
 import { BarCodeScanner } from "expo-barcode-scanner";
+import { useNavigation, useFocusEffect } from "@react-navigation/native"; // Import useNavigation hook
 
 const QRScanner = () => {
   const [hasPermission, setHasPermission] = useState(null);
   const [scanned, setScanned] = useState(false);
   const [text, setText] = useState("Not yet scanned");
 
-  const askForCameraPermission = () => {
-    (async () => {
-      const { status } = await BarCodeScanner.requestPermissionsAsync();
-      setHasPermission(status === "granted");
-    })();
+  const navigation = useNavigation(); // Initialize navigation object
+
+  const askForCameraPermission = async () => {
+    // Define askForCameraPermission function
+    const { status } = await BarCodeScanner.requestPermissionsAsync();
+    setHasPermission(status === "granted");
   };
 
-  // Request Camera Permission
   useEffect(() => {
     askForCameraPermission();
   }, []);
 
-  // What happens when we scan the bar code
   const handleBarCodeScanned = ({ type, data }) => {
     setScanned(true);
     setText(data);
     console.log("Type: " + type + "\nData: " + data);
   };
 
-  // Check permissions and return the screens
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        // Prevent going back when the QRScanner screen is focused
+        return true;
+      };
+
+      // Add event listener to intercept the back button press
+      BackHandler.addEventListener("hardwareBackPress", onBackPress);
+
+      // Remove event listener when leaving the screen
+      return () => {
+        BackHandler.removeEventListener("hardwareBackPress", onBackPress);
+      };
+    }, [])
+  );
+
   if (hasPermission === null) {
     return (
       <View style={styles.container}>
@@ -62,6 +78,13 @@ const QRScanner = () => {
           color="tomato"
         />
       )}
+
+      {/* Add a button to navigate back */}
+      <Button
+        title={"Go back"}
+        onPress={() => navigation.goBack()}
+        color="blue"
+      />
     </View>
   );
 };

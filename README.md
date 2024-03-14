@@ -9,3 +9,4 @@
     npm install @react-navigation/bottom-tabs
     npx expo install expo-barcode-scanner
     npm install aws-sdk dotenv multer
+    npm install react-native-dotenv --save-dev
