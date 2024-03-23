@@ -15,7 +15,6 @@ import { Dimensions } from "react-native";
 import IconAnt from "react-native-vector-icons/AntDesign";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import * as ImagePicker from "expo-image-picker";
-import * as Permissions from "expo-permissions";
 import { useFonts } from "expo-font";
 import { LinearGradient } from "expo-linear-gradient";
 import { DynamoDB, S3 } from "aws-sdk";
@@ -35,47 +34,69 @@ const UserScreen = ({ navigation, user }) => {
   const [fontsLoaded] = useFonts({
     "keaniaone-regular": require("../../assets/fonts/KeaniaOne-Regular.ttf"),
   });
-  const [avatarUri, setAvatarUri] = useState(user.avatarUser);
-
+  const [avatarUri, setAvatarUri] = useState(user?.avatarUser);
+  const [fileType, setFileType] = useState("");
+  const bucketName = S3_BUCKET_NAME;
+  const tableName = DYNAMODB_TABLE_NAME;
   const pickAvatar = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      alert("Permission denied to access media library");
-      return;
-    }
+    // Hiển thị hộp thoại xác nhận trước khi chọn hình
+    Alert.alert(
+      "Xác nhận",
+      "Bạn có muốn chọn ảnh mới?",
+      [
+        {
+          text: "Hủy",
+          onPress: () => console.log("Hủy"),
+          style: "cancel",
+        },
+        {
+          text: "Chọn",
+          onPress: async () => {
+            let result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.All,
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 1,
+            });
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
+            if (!result.canceled) {
+              setAvatarUri(result.assets[0].uri);
 
-    if (!result.cancelled) {
-      Alert.alert(
-        "Confirmation",
-        "Do you want to select this image?",
-        [
-          {
-            text: "Yes",
-            onPress: () => uploadAvatar(result.uri),
+              // Xác định fileType từ tên file
+              const image = result.assets[0].uri.split(".");
+              const fileType = image[image.length - 1];
+              setFileType(fileType);
+              uploadAvatar(result.assets[0].uri);
+            }
           },
-          {
-            text: "No",
-            style: "cancel",
-          },
-        ],
-        { cancelable: false }
-      );
-    }
+        },
+      ],
+      { cancelable: false }
+    );
   };
 
-  const uploadAvatar = async (uri) => {
+  const uploadAvatar = async (avatarUri) => {
     try {
-      const response = await fetch(uri);
+      let contentType = "";
+      switch (fileType) {
+        case "jpg":
+        case "jpeg":
+          contentType = "image/jpeg";
+          break;
+        case "png":
+          contentType = "image/png";
+          break;
+        case "gif":
+          contentType = "image/gif";
+          break;
+        default:
+          contentType = "application/octet-stream"; // Loại mặc định
+      }
+      const response = await fetch(avatarUri);
       const blob = await response.blob();
-      const fileType = uri.split(".").pop();
-      const fileName = `${user.soDienThoai}_${Date.now()}.${fileType}`;
+      const filePath = `${
+        user?.soDienThoai
+      }_${Date.now().toString()}.${fileType}`;
 
       const s3 = new S3({
         region: REGION,
@@ -84,15 +105,14 @@ const UserScreen = ({ navigation, user }) => {
       });
 
       const paramsS3 = {
-        Bucket: "minh22222",
-        Key: fileName,
+        Bucket: S3_BUCKET_NAME,
+        Key: filePath,
         Body: blob,
-        ContentType: `image/${fileType}`,
+        ContentType: contentType,
         ContentLength: blob.size,
       };
 
       const data = await s3.upload(paramsS3).promise();
-
       updateUserAvatar(data.Location);
     } catch (error) {
       console.error("Error uploading avatar:", error);
@@ -109,7 +129,7 @@ const UserScreen = ({ navigation, user }) => {
       });
 
       const paramsDynamoDb = {
-        TableName: DYNAMODB_TABLE_NAME,
+        TableName: tableName,
         Key: { soDienThoai: user.soDienThoai },
         UpdateExpression: "set avatarUser = :avatar",
         ExpressionAttributeValues: {
@@ -118,11 +138,13 @@ const UserScreen = ({ navigation, user }) => {
         ReturnValues: "UPDATED_NEW",
       };
 
+      // Cập nhật đường dẫn avatar mới trong cơ sở dữ liệu DynamoDB
       await dynamoDB.update(paramsDynamoDb).promise();
 
+      // Cập nhật đường dẫn avatar mới trong state avatarUri
       setAvatarUri(avatarUrl);
 
-      Alert.alert("Success", "Avatar updated successfully");
+      Alert.alert("Xong", "Avatar đã được cập nhật!");
     } catch (error) {
       console.error("Error updating user data:", error);
       Alert.alert("Error", "Failed to update user data");

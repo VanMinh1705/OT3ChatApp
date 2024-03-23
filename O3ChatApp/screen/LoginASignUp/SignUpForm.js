@@ -7,23 +7,63 @@ import {
   View,
   Pressable,
   Alert,
+  Image,
+  ScrollView,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { DynamoDB } from "aws-sdk";
+import { DynamoDB, S3 } from "aws-sdk";
+import * as ImagePicker from "expo-image-picker";
 import { useFonts } from "expo-font";
-import { ACCESS_KEY_ID, SECRET_ACCESS_KEY, REGION } from "@env";
+import {
+  ACCESS_KEY_ID,
+  SECRET_ACCESS_KEY,
+  REGION,
+  S3_BUCKET_NAME,
+  DYNAMODB_TABLE_NAME,
+} from "@env";
 
 const SignUpForm = ({ navigation }) => {
   const [hoTen, setHoTen] = useState("");
   const [soDienThoai, setSoDienThoai] = useState("");
   const [matKhau, setMatKhau] = useState("");
   const [nhapLaiMatKhau, setNhapLaiMatKhau] = useState("");
+  const [avatarUser, setAvatarUser] = useState(null);
+  const [fileType, setFileType] = useState(""); // Thêm state mới để lưu trữ fileType
   const [errors, setErrors] = useState({
     hoTen: "",
     soDienThoai: "",
     matKhau: "",
     nhapLaiMatKhau: "",
   });
+
+  const s3 = new S3({
+    accessKeyId: ACCESS_KEY_ID,
+    secretAccessKey: SECRET_ACCESS_KEY,
+    region: REGION,
+  });
+  const bucketName = S3_BUCKET_NAME;
+  const tableName = DYNAMODB_TABLE_NAME;
+
+  const pickImage = async () => {
+    // No permissions request is necessary for launching the image library
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+
+    console.log(result);
+
+    if (!result.canceled) {
+      setAvatarUser(result.assets[0].uri);
+
+      // Xác định fileType từ tên file
+      const image = result.assets[0].uri.split(".");
+      const fileType = image[image.length - 1];
+      setFileType(fileType); // Lưu fileType vào state hoặc truyền vào hàm signUp
+    }
+  };
 
   const signUp = async () => {
     try {
@@ -88,39 +128,73 @@ const SignUpForm = ({ navigation }) => {
         }));
       }
 
-      const checkParams = {
-        TableName: "Users",
-        Key: {
-          soDienThoai: soDienThoai,
-        },
-      };
-
-      const dynamoDB = new DynamoDB.DocumentClient({
-        region: REGION,
-        accessKeyId: ACCESS_KEY_ID,
-        secretAccessKey: SECRET_ACCESS_KEY,
-      });
-
-      const checkResult = await dynamoDB.get(checkParams).promise();
-
-      if (checkResult.Item) {
-        Alert.alert("Lỗi", "Số điện thoại đã được đăng ký trước đó");
+      if (!avatarUser) {
+        Alert.alert("Thông báo", "Vui lòng chọn hình ảnh");
         return;
       }
 
-      const params = {
-        TableName: "Users",
-        Item: {
-          soDienThoai: soDienThoai,
-          hoTen: hoTen,
-          matKhau: matKhau,
-          avatarUser: "",
-        },
+      let contentType = "";
+      switch (fileType) {
+        case "jpg":
+        case "jpeg":
+          contentType = "image/jpeg";
+          break;
+        case "png":
+          contentType = "image/png";
+          break;
+        case "gif":
+          contentType = "image/gif";
+          break;
+        default:
+          contentType = "application/octet-stream"; // Loại mặc định
+      }
+      const filePath = `${soDienThoai}_${Date.now().toString()}.${fileType}`;
+
+      // Sử dụng fetch để tải dữ liệu hình ảnh từ URI
+      const response = await fetch(avatarUser);
+      const blob = await response.blob();
+
+      const paramsS3 = {
+        Bucket: bucketName,
+        Key: filePath,
+        Body: blob, // Sử dụng dữ liệu blob của hình ảnh
+        ContentType: contentType,
       };
 
-      await dynamoDB.put(params).promise();
-      Alert.alert("Đăng ký thành công");
-      navigation.navigate("LoginForm");
+      s3.upload(paramsS3, async (err, data) => {
+        if (err) {
+          console.error("Error uploading image to S3:", err);
+          Alert.alert("Lỗi", "Có lỗi xảy ra khi tải lên hình ảnh");
+        } else {
+          const imageURL = data.Location;
+
+          // Lưu thông tin người dùng vào DynamoDB
+          const paramsDynamoDb = {
+            TableName: tableName,
+            Item: {
+              soDienThoai: soDienThoai,
+              hoTen: hoTen,
+              matKhau: matKhau,
+              avatarUser: imageURL,
+            },
+          };
+
+          try {
+            const dynamoDB = new DynamoDB.DocumentClient({
+              region: REGION,
+              accessKeyId: ACCESS_KEY_ID,
+              secretAccessKey: SECRET_ACCESS_KEY,
+            });
+
+            await dynamoDB.put(paramsDynamoDb).promise();
+            Alert.alert("Đăng ký thành công");
+            navigation.navigate("LoginForm");
+          } catch (error) {
+            console.error("Error saving user data to DynamoDB:", error);
+            Alert.alert("Đăng ký thất bại");
+          }
+        }
+      });
     } catch (error) {
       console.error("Lỗi khi đăng ký:", error);
       Alert.alert("Đăng ký thất bại");
@@ -200,6 +274,10 @@ const SignUpForm = ({ navigation }) => {
       <Text style={{ color: "red", fontSize: 12 }}>
         {errors.nhapLaiMatKhau}
       </Text>
+      <Pressable style={styles.btnSignUp} onPress={pickImage}>
+        <Text style={styles.txtSignUp}>Chọn hình ảnh</Text>
+      </Pressable>
+
       <Pressable style={styles.btnSignUp} onPress={signUp}>
         <Text style={styles.txtSignUp}>Đăng Ký</Text>
       </Pressable>
