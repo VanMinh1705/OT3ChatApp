@@ -5,6 +5,7 @@ import Icon from "react-native-vector-icons/AntDesign";
 import ChatSceen from "./ChatSceen";
 import PhoneBookScreen from "./PhoneBookScreen";
 import PersonalScreen from "./PersonalScreen";
+import FriendScreen from "./FriendScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -60,8 +61,10 @@ const HomeScreen = ({ navigation, route }) => {
           ),
         }}
         name="ChatSceen"
-        component={ChatSceen}
-      />
+      >
+        {() => <ChatSceen user={user} />}
+      </Tab.Screen>
+
       <Tab.Screen
         options={{
           tabBarLabel: "Danh Bạ",
@@ -70,8 +73,9 @@ const HomeScreen = ({ navigation, route }) => {
           ),
         }}
         name="PhoneBookScreen"
-        component={PhoneBookScreen}
-      />
+      >
+        {() => <PhoneBookScreen user={user} />}
+      </Tab.Screen>
       <Tab.Screen
         options={{
           tabBarLabel: "Cá Nhân",

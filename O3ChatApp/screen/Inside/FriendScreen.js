@@ -1,31 +1,71 @@
 import {
   SafeAreaView,
-  ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   View,
   Image,
-  TextInput,
   Pressable,
 } from "react-native";
-import React from "react";
+import React, { useEffect, useState, useCallback } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { Dimensions } from "react-native";
-import IconAnt from "react-native-vector-icons/AntDesign";
-import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { useFonts } from "expo-font";
 import { LinearGradient } from "expo-linear-gradient";
+import { DynamoDB } from "aws-sdk";
+import {
+  ACCESS_KEY_ID,
+  SECRET_ACCESS_KEY,
+  REGION,
+  DYNAMODB_TABLE_NAME,
+} from "@env";
 
 export const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } =
   Dimensions.get("window");
 
-const FriendScreen = () => {
+const FriendScreen = ({ user, navigation }) => {
+  const [friends, setFriends] = useState([]);
+  const dynamoDB = new DynamoDB.DocumentClient({
+    region: REGION,
+    accessKeyId: ACCESS_KEY_ID,
+    secretAccessKey: SECRET_ACCESS_KEY,
+  });
+
+  const fetchFriends = async () => {
+    try {
+      const getFriendsParams = {
+        TableName: "Messager",
+        Key: { senderPhoneNumber: user?.soDienThoai },
+      };
+      const friendData = await dynamoDB.get(getFriendsParams).promise();
+
+      if (friendData.Item && friendData.Item.receiverPhoneNumbers) {
+        setFriends(friendData.Item.receiverPhoneNumbers);
+      } else {
+        setFriends([]);
+      }
+    } catch (error) {
+      console.error("Error fetching friends:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchFriends();
+  }, [user]);
+
+  // Sử dụng useFocusEffect để gọi fetchFriends mỗi khi màn hình được focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchFriends();
+    }, [navigation])
+  );
+
   const [fontsLoaded] = useFonts({
     "keaniaone-regular": require("../../assets/fonts/KeaniaOne-Regular.ttf"),
   });
   if (!fontsLoaded) {
     return null;
   }
+
   return (
     <SafeAreaView style={styles.container}>
       <SafeAreaView>
@@ -34,61 +74,54 @@ const FriendScreen = () => {
 
       <View style={styles.viewContent}>
         <LinearGradient
-          // Background Linear Gradient
           colors={["#4AD8C7", "#B728A9"]}
           style={styles.background}
         />
         <View style={styles.infoMenu}>
           <Image
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: 25,
-              marginLeft: 10,
-              resizeMode: "contain",
-            }}
+            style={styles.iconImage}
             source={require("../../assets/img/iconFriendScreen/icon-add-friend.png")}
           />
-          <Pressable style={{ marginLeft: 10 }}>
+          <Pressable style={styles.menuTextContainer}>
             <Text style={styles.txtUser}>Lời mời kết bạn</Text>
           </Pressable>
         </View>
         <View style={styles.infoMenu}>
           <Image
-            style={{
-              width: 46,
-              height: 46,
-              borderRadius: 20,
-              marginLeft: 13,
-            }}
+            style={styles.avatarImage}
             source={require("../../assets/img/iconFriendScreen/icon-list.png")}
           />
-          <Pressable style={{ marginLeft: 10 }}>
-            <Text style={styles.txtUser}>Danh bạ máy</Text>
+          <Pressable style={styles.menuTextContainer}>
+            <Text style={styles.txtUser}>{user?.soDienThoai}</Text>
           </Pressable>
         </View>
         <View style={styles.infoMenu}>
           <Image
-            style={{
-              width: 50,
-              height: 50,
-              borderRadius: 25,
-              marginLeft: 10,
-              resizeMode: "contain",
-            }}
+            style={styles.iconImage}
             source={require("../../assets/img/iconFriendScreen/icon-birthday.png")}
           />
-          <Pressable style={{ marginLeft: 10 }}>
+          <Pressable style={styles.menuTextContainer}>
             <Text style={styles.txtUser}>Lịch sinh nhật</Text>
           </Pressable>
         </View>
         <View style={styles.contactPhone}>
-          <Text>Thông tin danh bạ liên lạc ở đây</Text>
+          {friends.map((friend, index) => (
+            <View key={index} style={styles.infoMenu}>
+              <Image
+                style={styles.avatarImage}
+                source={{ uri: friend.avatarUser }}
+              />
+              <Pressable style={styles.menuTextContainer}>
+                <Text style={styles.txtUser}>{friend.hoTen}</Text>
+              </Pressable>
+            </View>
+          ))}
         </View>
       </View>
     </SafeAreaView>
   );
 };
+
 export default FriendScreen;
 
 const styles = StyleSheet.create({
@@ -101,17 +134,6 @@ const styles = StyleSheet.create({
     height: "100%",
     width: "100%",
   },
-  header: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#03c6fc",
-    position: "absolute",
-  },
-
-  scrollViewContent: {
-    height: WINDOW_HEIGHT,
-    backgroundColor: "white",
-  },
   viewContent: {
     width: "100%",
     height: "100%",
@@ -120,7 +142,6 @@ const styles = StyleSheet.create({
   infoMenu: {
     width: "100%",
     height: 65,
-    fontSize: 16,
     paddingLeft: 10,
     borderWidth: 1,
     backgroundColor: "white",
@@ -128,40 +149,25 @@ const styles = StyleSheet.create({
     borderColor: "#ccc",
     alignItems: "center",
   },
-  securityAccount: {
-    flexDirection: "row",
-    marginTop: 10,
-    backgroundColor: "white",
-    width: "100%",
-    height: 50,
-    borderWidth: 1,
-    borderColor: "#ccc",
-  },
-  txtSecurity: {
+  menuTextContainer: {
     marginLeft: 10,
-    fontSize: 20,
-    marginTop: 12,
   },
-  Privacy: {
-    flexDirection: "row",
-    backgroundColor: "white",
-    width: "100%",
+  iconImage: {
+    width: 50,
     height: 50,
-    borderWidth: 1,
-    borderColor: "#ccc",
-  },
-  txtPrivacy: {
+    borderRadius: 25,
     marginLeft: 10,
-    fontSize: 20,
-    marginTop: 12,
+    resizeMode: "contain",
+  },
+  avatarImage: {
+    width: 46,
+    height: 46,
+    borderRadius: 20,
+    marginLeft: 13,
   },
   txtUser: {
     color: "#000",
     fontSize: 18,
-  },
-  txtViewUser: {
-    color: "#696969",
-    fontSize: 16,
   },
   contactPhone: {
     backgroundColor: "white",

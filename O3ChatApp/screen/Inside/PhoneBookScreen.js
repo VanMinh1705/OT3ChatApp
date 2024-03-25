@@ -4,16 +4,8 @@ import FriendScreen from "./FriendScreen";
 import ChatSceen, { WINDOW_HEIGHT } from "./ChatSceen";
 import GroupScreen from "./GroupScreen";
 
-const PhoneBookScreen = () => {
+const PhoneBookScreen = ({ navigation, user }) => {
   const [select, setSelect] = useState(1);
-
-  const renderScreen = () => {
-    if (select === 1) {
-      return <FriendScreen />;
-    } else if (select === 2) {
-      return <GroupScreen />;
-    }
-  };
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -33,7 +25,11 @@ const PhoneBookScreen = () => {
       </View>
       <View style={styles.dividerVertical} />
       <SafeAreaView style={styles.screenContainer}>
-        {select === 1 ? <FriendScreen /> : <GroupScreen />}
+        {select === 1 ? (
+          <FriendScreen user={user} />
+        ) : (
+          <GroupScreen user={user} />
+        )}
       </SafeAreaView>
     </SafeAreaView>
   );

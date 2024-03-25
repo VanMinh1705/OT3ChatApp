@@ -200,7 +200,7 @@ const UserScreen = ({ navigation, user }) => {
               source={
                 avatarUri
                   ? { uri: avatarUri }
-                  : require("../../assets/img/iconFriendScreen/icon-list.png")
+                  : require("../../assets/img/no-avatar.png")
               }
             />
           </Pressable>

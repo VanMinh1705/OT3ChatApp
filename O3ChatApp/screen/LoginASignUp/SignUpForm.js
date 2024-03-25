@@ -213,74 +213,91 @@ const SignUpForm = ({ navigation }) => {
         colors={["#4AD8C7", "#B728A9"]}
         style={styles.background}
       />
-      <View style={styles.logo}>
-        <Text style={styles.txtLogo}>4MChat</Text>
-      </View>
-      <Text
-        style={{
-          color: "#F5EEEE",
-          fontSize: 40,
-          fontWeight: "bold",
-        }}
-      >
-        Đăng ký
-      </Text>
-      <TextInput
-        style={{
-          ...styles.inputHoTen,
-          color: "#000",
-          borderColor: errors.hoTen ? "red" : "transparent",
-          borderWidth: errors.hoTen ? 1 : 0,
-        }}
-        placeholder="Họ và Tên"
-        onChangeText={(text) => setHoTen(text)}
-      />
-      <Text style={{ color: "red", fontSize: 12 }}>{errors.hoTen}</Text>
-      <TextInput
-        style={{
-          ...styles.inputSDT,
-          color: "#000",
-          borderColor: errors.soDienThoai ? "red" : "transparent",
-          borderWidth: errors.soDienThoai ? 1 : 0,
-        }}
-        placeholder="Số điện thoại"
-        onChangeText={(text) => setSoDienThoai(text)}
-        keyboardType="phone-pad" // Bàn phím chỉ hiển thị số
-      />
-      <Text style={{ color: "red", fontSize: 12 }}>{errors.soDienThoai}</Text>
-      <TextInput
-        style={{
-          ...styles.inputPass,
-          color: "#000",
-          borderColor: errors.matKhau ? "red" : "transparent",
-          borderWidth: errors.matKhau ? 1 : 0,
-        }}
-        placeholder="Mật khẩu"
-        secureTextEntry={true}
-        onChangeText={(text) => setMatKhau(text)}
-      />
-      <Text style={{ color: "red", fontSize: 12 }}>{errors.matKhau}</Text>
-      <TextInput
-        style={{
-          ...styles.inputConfirmPass,
-          color: "#000",
-          borderColor: errors.nhapLaiMatKhau ? "red" : "transparent",
-          borderWidth: errors.nhapLaiMatKhau ? 1 : 0,
-        }}
-        placeholder="Nhập lại mật khẩu"
-        secureTextEntry={true}
-        onChangeText={(text) => setNhapLaiMatKhau(text)}
-      />
-      <Text style={{ color: "red", fontSize: 12 }}>
-        {errors.nhapLaiMatKhau}
-      </Text>
-      <Pressable style={styles.btnSignUp} onPress={pickImage}>
-        <Text style={styles.txtSignUp}>Chọn hình ảnh</Text>
-      </Pressable>
+      <ScrollView>
+        <View style={styles.logo}>
+          <Text style={styles.txtLogo}>4MChat</Text>
+        </View>
+        <Text
+          style={{
+            color: "#F5EEEE",
+            fontSize: 40,
+            fontWeight: "bold",
+          }}
+        >
+          Đăng ký
+        </Text>
+        <TextInput
+          style={{
+            ...styles.inputHoTen,
+            color: "#000",
+            borderColor: errors.hoTen ? "red" : "transparent",
+            borderWidth: errors.hoTen ? 1 : 0,
+          }}
+          placeholder="Họ và Tên"
+          onChangeText={(text) => setHoTen(text)}
+        />
+        <Text style={{ color: "red", fontSize: 12 }}>{errors.hoTen}</Text>
+        <TextInput
+          style={{
+            ...styles.inputSDT,
+            color: "#000",
+            borderColor: errors.soDienThoai ? "red" : "transparent",
+            borderWidth: errors.soDienThoai ? 1 : 0,
+          }}
+          placeholder="Số điện thoại"
+          onChangeText={(text) => setSoDienThoai(text)}
+          keyboardType="phone-pad" // Bàn phím chỉ hiển thị số
+        />
+        <Text style={{ color: "red", fontSize: 12 }}>{errors.soDienThoai}</Text>
+        <TextInput
+          style={{
+            ...styles.inputPass,
+            color: "#000",
+            borderColor: errors.matKhau ? "red" : "transparent",
+            borderWidth: errors.matKhau ? 1 : 0,
+          }}
+          placeholder="Mật khẩu"
+          secureTextEntry={true}
+          onChangeText={(text) => setMatKhau(text)}
+        />
+        <Text style={{ color: "red", fontSize: 12 }}>{errors.matKhau}</Text>
+        <TextInput
+          style={{
+            ...styles.inputConfirmPass,
+            color: "#000",
+            borderColor: errors.nhapLaiMatKhau ? "red" : "transparent",
+            borderWidth: errors.nhapLaiMatKhau ? 1 : 0,
+          }}
+          placeholder="Nhập lại mật khẩu"
+          secureTextEntry={true}
+          onChangeText={(text) => setNhapLaiMatKhau(text)}
+        />
+        <Text style={{ color: "red", fontSize: 12 }}>
+          {errors.nhapLaiMatKhau}
+        </Text>
 
-      <Pressable style={styles.btnSignUp} onPress={signUp}>
-        <Text style={styles.txtSignUp}>Đăng Ký</Text>
-      </Pressable>
+        <View
+          style={{
+            flexDirection: "row",
+          }}
+        >
+          <Pressable style={styles.btnSignUp} onPress={pickImage}>
+            <Text style={styles.txtSignUp}>Chọn hình ảnh</Text>
+          </Pressable>
+          <Image
+            style={{
+              width: 40,
+              height: 40,
+              alignSelf: "center",
+              marginLeft: 30,
+            }}
+            source={{ uri: avatarUser }}
+          />
+        </View>
+        <Pressable style={styles.btnSignUp} onPress={signUp}>
+          <Text style={styles.txtSignUp}>Đăng Ký</Text>
+        </Pressable>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -289,7 +306,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    alignItems: "center",
   },
   background: {
     position: "absolute",
