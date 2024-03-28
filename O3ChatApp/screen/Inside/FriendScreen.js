@@ -1,3 +1,5 @@
+import React, { useEffect, useState, useCallback } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   SafeAreaView,
   StyleSheet,
@@ -5,25 +7,24 @@ import {
   View,
   Image,
   Pressable,
+  Modal,
+  FlatList,
 } from "react-native";
-import React, { useEffect, useState, useCallback } from "react";
-import { useFocusEffect } from "@react-navigation/native";
 import { Dimensions } from "react-native";
 import { useFonts } from "expo-font";
 import { LinearGradient } from "expo-linear-gradient";
 import { DynamoDB } from "aws-sdk";
-import {
-  ACCESS_KEY_ID,
-  SECRET_ACCESS_KEY,
-  REGION,
-  DYNAMODB_TABLE_NAME,
-} from "@env";
+import { ACCESS_KEY_ID, SECRET_ACCESS_KEY, REGION } from "@env";
 
 export const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } =
   Dimensions.get("window");
 
 const FriendScreen = ({ user, navigation }) => {
   const [friends, setFriends] = useState([]);
+  const [friendRequests, setFriendRequests] = useState([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [numFriendRequests, setNumFriendRequests] = useState(0);
+
   const dynamoDB = new DynamoDB.DocumentClient({
     region: REGION,
     accessKeyId: ACCESS_KEY_ID,
@@ -33,13 +34,13 @@ const FriendScreen = ({ user, navigation }) => {
   const fetchFriends = async () => {
     try {
       const getFriendsParams = {
-        TableName: "Messager",
+        TableName: "Friends",
         Key: { senderPhoneNumber: user?.soDienThoai },
       };
       const friendData = await dynamoDB.get(getFriendsParams).promise();
 
-      if (friendData.Item && friendData.Item.receiverPhoneNumbers) {
-        setFriends(friendData.Item.receiverPhoneNumbers);
+      if (friendData.Item && friendData.Item.friends) {
+        setFriends(friendData.Item.friends);
       } else {
         setFriends([]);
       }
@@ -48,29 +49,179 @@ const FriendScreen = ({ user, navigation }) => {
     }
   };
 
+  const fetchFriendRequests = async () => {
+    try {
+      const getFriendRequestsParams = {
+        TableName: "FriendRequests",
+        Key: { soDienThoai: user?.soDienThoai },
+      };
+      const friendRequestsData = await dynamoDB
+        .get(getFriendRequestsParams)
+        .promise();
+
+      if (friendRequestsData.Item && friendRequestsData.Item.friendRequests) {
+        setFriendRequests(friendRequestsData.Item.friendRequests);
+      } else {
+        setFriendRequests([]);
+      }
+    } catch (error) {
+      console.error("Error fetching friend requests:", error);
+    }
+  };
+
   useEffect(() => {
     fetchFriends();
+    fetchFriendRequests();
   }, [user]);
 
-  // Sử dụng useFocusEffect để gọi fetchFriends mỗi khi màn hình được focus
+  useEffect(() => {
+    setNumFriendRequests(friendRequests.length);
+  }, [friendRequests]);
+
+  const handleAcceptFriendRequest = async (friendRequest) => {
+    try {
+      // Lấy danh sách bạn bè của người gửi lời mời từ cơ sở dữ liệu
+      const getSenderFriendsParams = {
+        TableName: "Friends",
+        Key: { senderPhoneNumber: friendRequest.soDienThoai },
+      };
+      const senderFriendData = await dynamoDB
+        .get(getSenderFriendsParams)
+        .promise();
+
+      // Cập nhật danh sách bạn bè của người gửi lời mời
+      let updatedSenderFriends = [];
+      if (!senderFriendData.Item) {
+        updatedSenderFriends = [user];
+      } else {
+        updatedSenderFriends = [...(senderFriendData.Item.friends || []), user];
+      }
+      const updateSenderFriendEntry = {
+        TableName: "Friends",
+        Key: { senderPhoneNumber: friendRequest.soDienThoai },
+        UpdateExpression: "set friends = :friends",
+        ExpressionAttributeValues: { ":friends": updatedSenderFriends },
+      };
+      await dynamoDB.update(updateSenderFriendEntry).promise();
+
+      // Lấy danh sách bạn bè của người nhận lời mời từ cơ sở dữ liệu
+      const getReceiverFriendsParams = {
+        TableName: "Friends",
+        Key: { senderPhoneNumber: user?.soDienThoai },
+      };
+      const receiverFriendData = await dynamoDB
+        .get(getReceiverFriendsParams)
+        .promise();
+
+      // Cập nhật danh sách bạn bè của người nhận lời mời
+      let updatedReceiverFriends = [];
+      if (!receiverFriendData.Item) {
+        updatedReceiverFriends = [friendRequest];
+      } else {
+        updatedReceiverFriends = [
+          ...(receiverFriendData.Item.friends || []),
+          friendRequest,
+        ];
+      }
+      const updateReceiverFriendEntry = {
+        TableName: "Friends",
+        Key: { senderPhoneNumber: user?.soDienThoai },
+        UpdateExpression: "set friends = :friends",
+        ExpressionAttributeValues: { ":friends": updatedReceiverFriends },
+      };
+      await dynamoDB.update(updateReceiverFriendEntry).promise();
+
+      // Xóa lời mời kết bạn đã được chấp nhận khỏi danh sách lời mời kết bạn
+      const getRequestParams = {
+        TableName: "FriendRequests",
+        Key: { soDienThoai: user?.soDienThoai },
+      };
+      const requestResult = await dynamoDB.get(getRequestParams).promise();
+
+      if (!requestResult.Item || !requestResult.Item.friendRequests) {
+        // Không có dữ liệu hoặc không có mảng friendRequests, không cần xóa
+        return;
+      }
+
+      // Lọc ra mảng friendRequests mới mà không chứa friendRequest cần xóa
+      const updatedFriendRequests = requestResult.Item.friendRequests.filter(
+        (request) => request.soDienThoai !== friendRequest.soDienThoai
+      );
+
+      // Cập nhật lại mảng friendRequests mới vào cơ sở dữ liệu
+      const updateParams = {
+        TableName: "FriendRequests",
+        Key: { soDienThoai: user?.soDienThoai },
+        UpdateExpression: "SET friendRequests = :updatedRequests",
+        ExpressionAttributeValues: {
+          ":updatedRequests": updatedFriendRequests,
+        },
+      };
+      await dynamoDB.update(updateParams).promise();
+
+      // Cập nhật lại danh sách bạn bè và danh sách lời mời kết bạn
+      fetchFriends();
+      fetchFriendRequests();
+    } catch (error) {
+      console.error("Error accepting friend request:", error);
+    }
+  };
+
+  const handleRejectFriendRequest = async (friendRequest) => {
+    try {
+      // Lấy danh sách friendRequests từ cơ sở dữ liệu
+      const getRequestParams = {
+        TableName: "FriendRequests",
+        Key: { soDienThoai: user?.soDienThoai },
+      };
+      const requestResult = await dynamoDB.get(getRequestParams).promise();
+
+      if (!requestResult.Item || !requestResult.Item.friendRequests) {
+        // Không có dữ liệu hoặc không có mảng friendRequests, không cần xóa
+        return;
+      }
+
+      // Lọc ra mảng friendRequests mới mà không chứa friendRequest cần xóa
+      const updatedFriendRequests = requestResult.Item.friendRequests.filter(
+        (request) => request.soDienThoai !== friendRequest.soDienThoai
+      );
+
+      // Cập nhật lại mảng friendRequests mới vào cơ sở dữ liệu
+      const updateParams = {
+        TableName: "FriendRequests",
+        Key: { soDienThoai: user?.soDienThoai },
+        UpdateExpression: "SET friendRequests = :updatedRequests",
+        ExpressionAttributeValues: {
+          ":updatedRequests": updatedFriendRequests,
+        },
+      };
+      await dynamoDB.update(updateParams).promise();
+
+      // Cập nhật lại danh sách lời mời kết bạn
+      fetchFriendRequests();
+    } catch (error) {
+      console.error("Error rejecting friend request:", error);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       fetchFriends();
+      fetchFriendRequests();
     }, [navigation])
   );
 
   const [fontsLoaded] = useFonts({
     "keaniaone-regular": require("../../assets/fonts/KeaniaOne-Regular.ttf"),
   });
+
   if (!fontsLoaded) {
     return null;
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <SafeAreaView>
-        <View style={styles.upperHeaderPlaceholer} />
-      </SafeAreaView>
+      <View style={styles.upperHeaderPlaceholer} />
 
       <View style={styles.viewContent}>
         <LinearGradient
@@ -82,9 +233,64 @@ const FriendScreen = ({ user, navigation }) => {
             style={styles.iconImage}
             source={require("../../assets/img/iconFriendScreen/icon-add-friend.png")}
           />
-          <Pressable style={styles.menuTextContainer}>
+          <Pressable
+            style={styles.menuTextContainer}
+            onPress={() => {
+              setModalVisible(true);
+            }}
+          >
             <Text style={styles.txtUser}>Lời mời kết bạn</Text>
+            {numFriendRequests > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationText}>{numFriendRequests}</Text>
+              </View>
+            )}
           </Pressable>
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={modalVisible}
+            onRequestClose={() => {
+              setModalVisible(!modalVisible);
+            }}
+          >
+            <View style={styles.centeredView}>
+              <View style={styles.modalView}>
+                <Text style={styles.modalText}>Lời mời kết bạn</Text>
+                <FlatList
+                  data={friendRequests}
+                  renderItem={({ item }) => (
+                    <View style={styles.friendRequestItem}>
+                      <Image
+                        style={{ width: 50, height: 50 }}
+                        source={{ uri: item.avatarUser }}
+                      />
+                      <Text style={styles.friendRequestName}>{item.hoTen}</Text>
+                      <Pressable
+                        style={[styles.button, styles.acceptButton]}
+                        onPress={() => handleAcceptFriendRequest(item)}
+                      >
+                        <Text style={styles.buttonText}>Chấp nhận</Text>
+                      </Pressable>
+                      <Pressable
+                        style={[styles.button, styles.rejectButton]}
+                        onPress={() => handleRejectFriendRequest(item)}
+                      >
+                        <Text style={styles.buttonText}>Từ chối</Text>
+                      </Pressable>
+                    </View>
+                  )}
+                  keyExtractor={(item, index) => index.toString()}
+                />
+                <Pressable
+                  style={[styles.button, styles.buttonClose]}
+                  onPress={() => setModalVisible(!modalVisible)}
+                >
+                  <Text style={styles.textStyle}>Đóng</Text>
+                </Pressable>
+              </View>
+            </View>
+          </Modal>
         </View>
         <View style={styles.infoMenu}>
           <Image
@@ -92,7 +298,7 @@ const FriendScreen = ({ user, navigation }) => {
             source={require("../../assets/img/iconFriendScreen/icon-list.png")}
           />
           <Pressable style={styles.menuTextContainer}>
-            <Text style={styles.txtUser}>{user?.soDienThoai}</Text>
+            <Text style={styles.txtUser}>Ngày sinh của bạn</Text>
           </Pressable>
         </View>
         <View style={styles.infoMenu}>
@@ -105,17 +311,21 @@ const FriendScreen = ({ user, navigation }) => {
           </Pressable>
         </View>
         <View style={styles.contactPhone}>
-          {friends.map((friend, index) => (
-            <View key={index} style={styles.infoMenu}>
-              <Image
-                style={styles.avatarImage}
-                source={{ uri: friend.avatarUser }}
-              />
-              <Pressable style={styles.menuTextContainer}>
-                <Text style={styles.txtUser}>{friend.hoTen}</Text>
-              </Pressable>
-            </View>
-          ))}
+          {friends.length > 0 ? (
+            friends.map((friend, index) => (
+              <View key={index} style={styles.infoMenu}>
+                <Image
+                  style={styles.avatarImage}
+                  source={{ uri: friend.avatarUser }}
+                />
+                <Pressable style={styles.menuTextContainer}>
+                  <Text style={styles.txtUser}>{friend.hoTen}</Text>
+                </Pressable>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.txtUser}>Không có bạn bè</Text>
+          )}
         </View>
       </View>
     </SafeAreaView>
@@ -174,5 +384,59 @@ const styles = StyleSheet.create({
     width: WINDOW_WIDTH,
     marginTop: 10,
     height: WINDOW_HEIGHT,
+  },
+  notificationBadge: {
+    position: "absolute",
+    right: 5,
+    top: "50%",
+    backgroundColor: "red",
+    borderRadius: 50,
+    width: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  notificationText: {
+    color: "white",
+    fontSize: 12,
+  },
+  centeredView: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 22,
+  },
+  modalView: {
+    width: "70%",
+    margin: 20,
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 35,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalText: {
+    marginBottom: 15,
+    textAlign: "center",
+  },
+  button: {
+    borderRadius: 20,
+    padding: 10,
+    elevation: 2,
+  },
+  buttonClose: {
+    backgroundColor: "#2196F3",
+  },
+  textStyle: {
+    color: "white",
+    fontWeight: "bold",
+    textAlign: "center",
   },
 });

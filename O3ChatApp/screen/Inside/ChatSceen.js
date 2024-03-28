@@ -27,16 +27,18 @@ import {
 export const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } =
   Dimensions.get("window");
 
-const ChatSceen = ({ navigation, user }) => {
+const ChatScreen = ({ navigation, user }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [friendRequestSent, setFriendRequestSent] = useState(false);
 
   const dynamoDB = new DynamoDB.DocumentClient({
     region: REGION,
     accessKeyId: ACCESS_KEY_ID,
     secretAccessKey: SECRET_ACCESS_KEY,
   });
-  const addFriend = async () => {
+
+  const sendFriendRequest = async () => {
     try {
       // Kiểm tra số điện thoại có tồn tại trong bảng User không
       const userExistsParams = {
@@ -52,54 +54,44 @@ const ChatSceen = ({ navigation, user }) => {
         return;
       }
 
-      // Lấy dữ liệu hiện tại từ bảng Messager
-      const getMessageParams = {
-        TableName: "Messager",
-        Key: { senderPhoneNumber: user?.soDienThoai },
-      };
-
-      const messageData = await dynamoDB.get(getMessageParams).promise();
-
-      let receiverPhoneNumbers = [];
-      if (messageData.Item && messageData.Item.receiverPhoneNumbers) {
-        // Nếu đã có dữ liệu cho senderPhoneNumber này, thêm receiverPhoneNumber mới vào mảng
-        receiverPhoneNumbers = messageData.Item.receiverPhoneNumbers;
-      }
-
-      // Thêm thông tin của receiver vào mảng receiverPhoneNumbers
-      receiverPhoneNumbers.push({
-        soDienThoai: phoneNumber,
-        hoTen: userData.Item.hoTen,
-        avatarUser: userData.Item.avatarUser, // Lưu thông tin avatarUser
-      });
-
-      // Thêm thông tin vào bảng Messager
-      const addMessageParams = {
-        TableName: "Messager", // Tên bảng Messager
-        Item: {
-          senderPhoneNumber: user?.soDienThoai,
-          receiverPhoneNumbers: receiverPhoneNumbers, // Mảng các đối tượng chứa thông tin soDienThoai, hoTen và avatarUser
-          // Thêm các thông tin khác nếu cần
+      // Thêm thông tin của người nhận vào danh sách lời mời kết bạn của người gửi
+      const addFriendRequestParams = {
+        TableName: "FriendRequests",
+        Key: { soDienThoai: phoneNumber },
+        UpdateExpression:
+          "SET friendRequests = list_append(if_not_exists(friendRequests, :empty_list), :request)",
+        ExpressionAttributeValues: {
+          ":request": [
+            {
+              soDienThoai: user?.soDienThoai,
+              hoTen: user?.hoTen,
+              avatarUser: user?.avatarUser,
+            },
+          ],
+          ":empty_list": [],
         },
+        ReturnValues: "UPDATED_NEW",
       };
-
-      await dynamoDB.put(addMessageParams).promise();
+      await dynamoDB.update(addFriendRequestParams).promise();
 
       // Hiển thị thông báo thành công
-      alert("Kết bạn thành công!");
+      alert("Đã gửi lời mời kết bạn!");
+      setFriendRequestSent(true);
       setModalVisible(false);
     } catch (error) {
-      console.error("Error adding friend:", error);
-      alert("Đã xảy ra lỗi khi kết bạn");
+      console.error("Error sending friend request:", error);
+      alert("Đã xảy ra lỗi khi gửi lời mời kết bạn");
     }
   };
 
   const [fontsLoaded] = useFonts({
     "keaniaone-regular": require("../../assets/fonts/KeaniaOne-Regular.ttf"),
   });
+
   if (!fontsLoaded) {
     return null;
   }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={"#1197bd"} />
@@ -123,7 +115,7 @@ const ChatSceen = ({ navigation, user }) => {
             style={{
               width: 235,
               height: 30,
-              color: "#000", // This is the text color when there is input
+              color: "#000",
               fontSize: 16,
               borderRadius: 10,
               paddingLeft: 10,
@@ -140,11 +132,11 @@ const ChatSceen = ({ navigation, user }) => {
           <Pressable
             onPress={() => {
               setModalVisible(true);
+              setFriendRequestSent(false);
             }}
           >
             <IconAnt name="plus" size={30} color={"#fff"} />
           </Pressable>
-          {/* Modal ở đây */}
           <Modal
             animationType="slide"
             transparent={true}
@@ -166,12 +158,11 @@ const ChatSceen = ({ navigation, user }) => {
                   { backgroundColor: "red", marginTop: 10 },
                 ]}
                 onPress={() => {
-                  addFriend(); // Gọi hàm addFriend khi nhấn nút "Kết bạn"
+                  sendFriendRequest();
                 }}
               >
                 <Text style={styles.textStyle}>Kết bạn</Text>
               </Pressable>
-              {/* Nút để đóng modal */}
               <Pressable
                 style={[
                   styles.button,
@@ -185,25 +176,20 @@ const ChatSceen = ({ navigation, user }) => {
               </Pressable>
             </View>
           </Modal>
-
-          {/* --------------------------------------- */}
         </View>
         <View style={styles.logo}>
           <Text style={styles.txtLogo}>4MChat</Text>
         </View>
         <View style={styles.upperHeader} />
-
         <View style={styles.lowerHeader} />
       </SafeAreaView>
       <ScrollView>
         <View style={styles.paddingForHeader} />
         <View style={styles.viewContent}>
           <LinearGradient
-            // Background Linear Gradient
             colors={["#4AD8C7", "#B728A9"]}
             style={styles.background}
           />
-          {/* <Text>Viet code ở đây  </Text> */}
         </View>
         <View style={styles.scrollViewContent} />
       </ScrollView>
@@ -211,7 +197,7 @@ const ChatSceen = ({ navigation, user }) => {
   );
 };
 
-export default ChatSceen;
+export default ChatScreen;
 
 const styles = StyleSheet.create({
   container: {
