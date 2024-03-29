@@ -18,6 +18,7 @@ import LoginForm from "./screen/LoginASignUp/LoginForm";
 import SignUpForm from "./screen/LoginASignUp/SignUpForm";
 import HomeScreen from "./screen/Inside/HomeScreen";
 import QRScanner from "./screen/Inside/QRScanner";
+import BoxChat from "./screen/Inside/BoxChat";
 
 const LoginASign = ({ navigation }) => {
   const [fontsLoaded] = useFonts({
@@ -115,6 +116,7 @@ export default function App() {
         <Stack.Screen name="SignUpForm" component={SignUpForm} />
         <Stack.Screen name="HomeScreen" component={HomeScreen} />
         <Stack.Screen name="QRScanner" component={QRScanner} />
+        <Stack.Screen name="BoxChat" component={BoxChat} />
       </Stack.Navigator>
     </NavigationContainer>
   );

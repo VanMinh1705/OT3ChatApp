@@ -62,7 +62,7 @@ const HomeScreen = ({ navigation, route }) => {
         }}
         name="ChatSceen"
       >
-        {() => <ChatSceen user={user} />}
+        {() => <ChatSceen user={user} navigation={navigation} />}
       </Tab.Screen>
 
       <Tab.Screen
@@ -74,7 +74,7 @@ const HomeScreen = ({ navigation, route }) => {
         }}
         name="PhoneBookScreen"
       >
-        {() => <PhoneBookScreen user={user} />}
+        {() => <PhoneBookScreen user={user} navigation={navigation} />}
       </Tab.Screen>
       <Tab.Screen
         options={{
@@ -85,7 +85,7 @@ const HomeScreen = ({ navigation, route }) => {
         }}
         name="PersonalScreen"
       >
-        {() => <PersonalScreen user={user} />}
+        {() => <PersonalScreen user={user} navigation={navigation} />}
       </Tab.Screen>
     </Tab.Navigator>
   );

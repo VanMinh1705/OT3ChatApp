@@ -11,7 +11,7 @@ import {
   Modal,
 } from "react-native";
 import React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dimensions } from "react-native";
 import IconAnt from "react-native-vector-icons/AntDesign";
 import { useFonts } from "expo-font";
@@ -31,6 +31,59 @@ const ChatScreen = ({ navigation, user }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [friendRequestSent, setFriendRequestSent] = useState(false);
+  const [boxChats, setBoxChats] = useState([]);
+
+  useEffect(() => {
+    fetchBoxChats();
+  }, []);
+
+  const fetchBoxChats = async () => {
+    try {
+      const params = {
+        TableName: "BoxChats",
+        KeyConditionExpression: "senderPhoneNumber = :senderPhoneNumber",
+        ExpressionAttributeValues: {
+          ":senderPhoneNumber": user?.soDienThoai,
+        },
+      };
+      const response = await dynamoDB.query(params).promise();
+      if (response.Items) {
+        setBoxChats(response.Items);
+      }
+    } catch (error) {
+      console.error("Error fetching box chats:", error);
+    }
+  };
+
+  const handleChatWithFriend = (friend) => {
+    navigation.navigate("BoxChat", { friend, user });
+  };
+
+  // Render danh sách các box chat
+  const renderBoxChats = () => {
+    return boxChats.map((boxChat, index) => (
+      <Pressable
+        key={index}
+        style={styles.boxChatItem}
+        onPress={() => handleChatWithFriend(boxChat.receiverInfo)}
+      >
+        <View style={styles.boxChatItemContent}>
+          <Image
+            source={{ uri: boxChat.receiverInfo.avatarUser }}
+            style={styles.avatar}
+          />
+          <View style={styles.textContainer}>
+            <Text style={styles.receiverName}>
+              {boxChat.receiverInfo.hoTen}
+            </Text>
+            <Text style={styles.receiverPhoneNumber}>
+              {boxChat.receiverPhoneNumber}
+            </Text>
+          </View>
+        </View>
+      </Pressable>
+    ));
+  };
 
   const dynamoDB = new DynamoDB.DocumentClient({
     region: REGION,
@@ -51,6 +104,30 @@ const ChatScreen = ({ navigation, user }) => {
       if (!userData.Item) {
         // Hiển thị thông báo nếu số điện thoại không tồn tại
         alert("Số điện thoại không tồn tại");
+        return;
+      }
+
+      // Kiểm tra xem số điện thoại đã kết bạn với bạn chưa
+      const isFriendParams = {
+        TableName: "Friends",
+        Key: { senderPhoneNumber: user?.soDienThoai },
+      };
+      const friendData = await dynamoDB.get(isFriendParams).promise();
+
+      if (friendData.Item && friendData.Item.friends) {
+        const isFriend = friendData.Item.friends.some(
+          (friend) => friend.soDienThoai === phoneNumber
+        );
+        if (isFriend) {
+          // Hiển thị thông báo nếu đã kết bạn với người dùng này
+          alert("Bạn đã kết bạn với người dùng này");
+          return;
+        }
+      }
+
+      // Kiểm tra nếu số điện thoại là của chính bạn
+      if (phoneNumber === user?.soDienThoai) {
+        alert("Đây là số điện thoại của bạn, không thể kết bạn!");
         return;
       }
 
@@ -190,6 +267,8 @@ const ChatScreen = ({ navigation, user }) => {
             colors={["#4AD8C7", "#B728A9"]}
             style={styles.background}
           />
+          {/* Render BoxChatt */}
+          {renderBoxChats()}
         </View>
         <View style={styles.scrollViewContent} />
       </ScrollView>
@@ -278,5 +357,33 @@ const styles = StyleSheet.create({
     color: "white",
     fontWeight: "bold",
     textAlign: "center",
+  },
+  boxChatItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ccc",
+  },
+  boxChatItemContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 10,
+  },
+  textContainer: {
+    justifyContent: "center",
+  },
+  receiverName: {
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  receiverPhoneNumber: {
+    fontSize: 14,
+    color: "#888",
   },
 });

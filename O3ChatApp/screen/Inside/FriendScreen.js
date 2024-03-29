@@ -9,6 +9,7 @@ import {
   Pressable,
   Modal,
   FlatList,
+  ScrollView,
 } from "react-native";
 import { Dimensions } from "react-native";
 import { useFonts } from "expo-font";
@@ -211,6 +212,85 @@ const FriendScreen = ({ user, navigation }) => {
     }, [navigation])
   );
 
+  const handleChatWithFriend = async (friend, user) => {
+    try {
+      // Kiểm tra xem bảng BoxChats có dữ liệu không
+      const existingChatParams = {
+        TableName: "BoxChats",
+      };
+      const existingChatData = await dynamoDB
+        .scan(existingChatParams)
+        .promise();
+
+      let chatExists = false;
+
+      // Nếu bảng BoxChats có dữ liệu
+      if (existingChatData.Items.length > 0) {
+        // Kiểm tra xem đã tồn tại box chat giữa người gửi và người nhận chưa
+        for (const chat of existingChatData.Items) {
+          if (
+            (chat.senderPhoneNumber === user.soDienThoai &&
+              chat.receiverPhoneNumber === friend.soDienThoai) ||
+            (chat.senderPhoneNumber === friend.soDienThoai &&
+              chat.receiverPhoneNumber === user.soDienThoai)
+          ) {
+            // Nếu box chat đã tồn tại, đánh dấu và thoát khỏi vòng lặp
+            chatExists = true;
+            break;
+          }
+        }
+      }
+
+      // Nếu box chat chưa tồn tại, tạo mới
+      if (!chatExists) {
+        // Tạo box chat cho người gửi
+        const senderChatParams = {
+          TableName: "BoxChats",
+          Item: {
+            senderPhoneNumber: user.soDienThoai,
+            receiverPhoneNumber: friend.soDienThoai,
+            messages: [],
+            // Thêm thông tin của người nhận vào box chat của người gửi
+            receiverInfo: {
+              soDienThoai: friend.soDienThoai,
+              hoTen: friend.hoTen,
+              avatarUser: friend.avatarUser,
+            },
+          },
+        };
+        await dynamoDB.put(senderChatParams).promise();
+
+        // Tạo box chat cho người nhận
+        const receiverChatParams = {
+          TableName: "BoxChats",
+          Item: {
+            senderPhoneNumber: friend.soDienThoai,
+            receiverPhoneNumber: user.soDienThoai,
+            messages: [],
+            receiverInfo: {
+              soDienThoai: user.soDienThoai,
+              hoTen: user.hoTen,
+              avatarUser: user.avatarUser,
+            },
+          },
+        };
+        await dynamoDB.put(receiverChatParams).promise();
+      }
+
+      // Chuyển đến màn hình BoxChat với thông tin của người bạn
+      navigation.navigate("BoxChat", { friend, user });
+    } catch (error) {
+      console.error("Error handling chat with friend:", error);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchFriends();
+      fetchFriendRequests();
+    }, [navigation])
+  );
+
   const [fontsLoaded] = useFonts({
     "keaniaone-regular": require("../../assets/fonts/KeaniaOne-Regular.ttf"),
   });
@@ -229,16 +309,16 @@ const FriendScreen = ({ user, navigation }) => {
           style={styles.background}
         />
         <View style={styles.infoMenu}>
-          <Image
-            style={styles.iconImage}
-            source={require("../../assets/img/iconFriendScreen/icon-add-friend.png")}
-          />
           <Pressable
             style={styles.menuTextContainer}
             onPress={() => {
               setModalVisible(true);
             }}
           >
+            <Image
+              style={styles.iconImage}
+              source={require("../../assets/img/iconFriendScreen/icon-add-friend.png")}
+            />
             <Text style={styles.txtUser}>Lời mời kết bạn</Text>
             {numFriendRequests > 0 && (
               <View style={styles.notificationBadge}>
@@ -292,40 +372,28 @@ const FriendScreen = ({ user, navigation }) => {
             </View>
           </Modal>
         </View>
-        <View style={styles.infoMenu}>
-          <Image
-            style={styles.avatarImage}
-            source={require("../../assets/img/iconFriendScreen/icon-list.png")}
-          />
-          <Pressable style={styles.menuTextContainer}>
-            <Text style={styles.txtUser}>Ngày sinh của bạn</Text>
-          </Pressable>
-        </View>
-        <View style={styles.infoMenu}>
-          <Image
-            style={styles.iconImage}
-            source={require("../../assets/img/iconFriendScreen/icon-birthday.png")}
-          />
-          <Pressable style={styles.menuTextContainer}>
-            <Text style={styles.txtUser}>Lịch sinh nhật</Text>
-          </Pressable>
-        </View>
         <View style={styles.contactPhone}>
-          {friends.length > 0 ? (
-            friends.map((friend, index) => (
-              <View key={index} style={styles.infoMenu}>
-                <Image
-                  style={styles.avatarImage}
-                  source={{ uri: friend.avatarUser }}
-                />
-                <Pressable style={styles.menuTextContainer}>
-                  <Text style={styles.txtUser}>{friend.hoTen}</Text>
+          <ScrollView>
+            {friends.length > 0 ? (
+              friends.map((friend, index) => (
+                <Pressable
+                  onPress={() => handleChatWithFriend(friend, user)}
+                  key={index}
+                  style={styles.infoMenu}
+                >
+                  <Image
+                    style={styles.avatarImage}
+                    source={{ uri: friend.avatarUser }}
+                  />
+                  <Pressable style={styles.menuTextContainer}>
+                    <Text style={styles.txtUser}>{friend.hoTen}</Text>
+                  </Pressable>
                 </Pressable>
-              </View>
-            ))
-          ) : (
-            <Text style={styles.txtUser}>Không có bạn bè</Text>
-          )}
+              ))
+            ) : (
+              <Text style={styles.txtUser}>Không có bạn bè</Text>
+            )}
+          </ScrollView>
         </View>
       </View>
     </SafeAreaView>
@@ -361,6 +429,8 @@ const styles = StyleSheet.create({
   },
   menuTextContainer: {
     marginLeft: 10,
+    flexDirection: "row",
+    alignItems: "center",
   },
   iconImage: {
     width: 50,
@@ -378,6 +448,7 @@ const styles = StyleSheet.create({
   txtUser: {
     color: "#000",
     fontSize: 18,
+    marginLeft: 10,
   },
   contactPhone: {
     backgroundColor: "white",
@@ -387,12 +458,11 @@ const styles = StyleSheet.create({
   },
   notificationBadge: {
     position: "absolute",
-    right: 5,
-    top: "50%",
+    left: 290,
     backgroundColor: "red",
     borderRadius: 50,
-    width: 20,
-    height: 20,
+    width: 30,
+    height: 30,
     justifyContent: "center",
     alignItems: "center",
   },

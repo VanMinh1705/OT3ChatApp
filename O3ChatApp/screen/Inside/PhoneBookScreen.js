@@ -26,9 +26,9 @@ const PhoneBookScreen = ({ navigation, user }) => {
       <View style={styles.dividerVertical} />
       <SafeAreaView style={styles.screenContainer}>
         {select === 1 ? (
-          <FriendScreen user={user} />
+          <FriendScreen user={user} navigation={navigation} />
         ) : (
-          <GroupScreen user={user} />
+          <GroupScreen user={user} navigation={navigation} />
         )}
       </SafeAreaView>
     </SafeAreaView>
