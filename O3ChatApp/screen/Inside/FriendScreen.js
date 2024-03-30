@@ -342,21 +342,21 @@ const FriendScreen = ({ user, navigation }) => {
                   renderItem={({ item }) => (
                     <View style={styles.friendRequestItem}>
                       <Image
-                        style={{ width: 50, height: 50 }}
+                        style={styles.friendRequestImage}
                         source={{ uri: item.avatarUser }}
                       />
                       <Text style={styles.friendRequestName}>{item.hoTen}</Text>
                       <Pressable
-                        style={[styles.button, styles.acceptButton]}
+                        style={[styles.acceptButton]}
                         onPress={() => handleAcceptFriendRequest(item)}
                       >
-                        <Text style={styles.buttonText}>Chấp nhận</Text>
+                        <Text style={styles.buttonText}>V</Text>
                       </Pressable>
                       <Pressable
-                        style={[styles.button, styles.rejectButton]}
+                        style={[styles.rejectButton]}
                         onPress={() => handleRejectFriendRequest(item)}
                       >
-                        <Text style={styles.buttonText}>Từ chối</Text>
+                        <Text style={styles.buttonText}>X</Text>
                       </Pressable>
                     </View>
                   )}
@@ -477,11 +477,9 @@ const styles = StyleSheet.create({
     marginTop: 22,
   },
   modalView: {
-    width: "70%",
-    margin: 20,
+    width: "90%",
     backgroundColor: "white",
     borderRadius: 20,
-    padding: 35,
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: {
@@ -503,10 +501,50 @@ const styles = StyleSheet.create({
   },
   buttonClose: {
     backgroundColor: "#2196F3",
+    marginTop:10
   },
   textStyle: {
     color: "white",
     fontWeight: "bold",
     textAlign: "center",
   },
+  friendRequestItem:{
+    flexDirection: 'row',
+    borderWidth:1, 
+    borderRadius:10,
+    padding:5
+  },
+  friendRequestName:{
+    textAlign:'center', 
+    alignSelf:'center',
+    fontSize:19
+  },
+  friendRequestImage:{
+    width: 40, 
+    height: 40, 
+    borderRadius:30 
+  },
+  acceptButton:{
+    marginTop:5,
+    width:30,
+    height:30,
+    marginLeft:5,
+    borderRadius:20,
+    justifyContent:'center',
+    backgroundColor:'green',
+    alignItems:'center',
+  },
+  rejectButton:{
+    marginTop:5,
+    width:30,
+    height:30,
+    marginLeft:5,
+    borderRadius:20,
+    justifyContent:'center',
+    alignItems:'center',
+    backgroundColor:'red',
+  },
+  buttonText:{
+    fontSize:12,
+  }
 });
