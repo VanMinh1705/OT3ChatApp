@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   Pressable,
   ScrollView,
   TextInput,
+  Platform,
+  Keyboard,
 } from "react-native";
 import { DynamoDB } from "aws-sdk";
 import { ACCESS_KEY_ID, SECRET_ACCESS_KEY, REGION } from "@env";
@@ -15,6 +17,8 @@ const BoxChat = ({ navigation, route }) => {
   const { friend, user } = route.params;
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
+  const scrollViewRef = useRef(null);
+  const textInputRef = useRef(null);
   const dynamoDB = new DynamoDB.DocumentClient({
     region: REGION,
     accessKeyId: ACCESS_KEY_ID,
@@ -39,11 +43,10 @@ const BoxChat = ({ navigation, route }) => {
 
   const fetchMessages = async () => {
     try {
-      // Lấy tin nhắn từ cơ sở dữ liệu của người gửi
       const senderParams = {
         TableName: "BoxChats",
         Key: {
-          senderPhoneNumber: user.soDienThoai,
+          senderPhoneNumber: `${user.soDienThoai}_${friend.soDienThoai}`,
         },
       };
       const senderResponse = await dynamoDB.get(senderParams).promise();
@@ -52,8 +55,15 @@ const BoxChat = ({ navigation, route }) => {
         : [];
 
       setMessages(senderMessages);
+      scrollToBottom(); // Cuộn đến cuối khi tải tin nhắn ban đầu
     } catch (error) {
       console.error("Error fetching messages:", error);
+    }
+  };
+
+  const scrollToBottom = () => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollToEnd({ animated: true });
     }
   };
 
@@ -66,7 +76,7 @@ const BoxChat = ({ navigation, route }) => {
 
     const senderMessage = {
       content: newMessage,
-      senderPhoneNumber: user.soDienThoai,
+      senderPhoneNumber: `${user.soDienThoai}_${friend.soDienThoai}`,
       receiverPhoneNumber: friend.soDienThoai,
       timestamp: timestamp,
       isSender: true,
@@ -74,18 +84,17 @@ const BoxChat = ({ navigation, route }) => {
 
     const receiverMessage = {
       content: newMessage,
-      senderPhoneNumber: friend.soDienThoai,
+      senderPhoneNumber: `${friend.soDienThoai}_${user.soDienThoai}`,
       receiverPhoneNumber: user.soDienThoai,
       timestamp: timestamp,
       isSender: false,
     };
 
     try {
-      // Cập nhật tin nhắn vào cơ sở dữ liệu của người gửi
       const senderParams = {
         TableName: "BoxChats",
         Key: {
-          senderPhoneNumber: user.soDienThoai,
+          senderPhoneNumber: `${user.soDienThoai}_${friend.soDienThoai}`,
         },
         UpdateExpression: "SET messages = list_append(messages, :newMessage)",
         ExpressionAttributeValues: {
@@ -95,11 +104,10 @@ const BoxChat = ({ navigation, route }) => {
       };
       await dynamoDB.update(senderParams).promise();
 
-      // Cập nhật tin nhắn vào cơ sở dữ liệu của người nhận
       const receiverParams = {
         TableName: "BoxChats",
         Key: {
-          senderPhoneNumber: friend.soDienThoai,
+          senderPhoneNumber: `${friend.soDienThoai}_${user.soDienThoai}`,
         },
         UpdateExpression: "SET messages = list_append(messages, :newMessage)",
         ExpressionAttributeValues: {
@@ -109,51 +117,62 @@ const BoxChat = ({ navigation, route }) => {
       };
       await dynamoDB.update(receiverParams).promise();
 
-      // Cập nhật tin nhắn trong state của BoxChat
       setMessages([...messages, senderMessage]);
       setNewMessage("");
+      scrollToBottom(); // Cuộn đến cuối sau khi gửi tin nhắn
     } catch (error) {
       console.error("Error sending message:", error);
     }
   };
+
+  const formatMessageTimestamp = (timestamp) => {
+    const date = new Date(timestamp);
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const formattedHours = hours < 10 ? `0${hours}` : `${hours}`;
+    const formattedMinutes = minutes < 10 ? `0${minutes}` : `${minutes}`;
+    return `${formattedHours}:${formattedMinutes}`;
+  };
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      "keyboardDidShow",
+      () => {
+        scrollToBottom();
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+    };
+  }, []);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerText}>{friend.hoTen}</Text>
       </View>
-      <ScrollView contentContainerStyle={styles.scrollViewContent}>
-        {messages.map((message, index) =>
-          // Render tin nhắn của người gửi
-          message.isSender ? (
-            <View
-              key={index}
-              style={[
-                styles.messageContainer,
-                {
-                  alignSelf: "flex-end",
-                  backgroundColor: "#ffffff",
-                },
-              ]}
-            >
-              <Text style={styles.messageText}>{message.content}</Text>
-            </View>
-          ) : (
-            // Render tin nhắn của người nhận
-            <View
-              key={index}
-              style={[
-                styles.messageContainer,
-                {
-                  alignSelf: "flex-start",
-                  backgroundColor: "#dddddd",
-                },
-              ]}
-            >
-              <Text style={styles.messageText}>{message.content}</Text>
-            </View>
-          )
-        )}
+      <ScrollView
+        contentContainerStyle={styles.scrollViewContent}
+        ref={scrollViewRef}
+      >
+        {messages.map((message, index) => (
+          <View
+            key={index}
+            style={[
+              styles.messageContainer,
+              {
+                alignSelf: message.isSender ? "flex-end" : "flex-start",
+                backgroundColor: message.isSender ? "#94e5f2" : "#dddddd",
+              },
+            ]}
+          >
+            <Text style={styles.messageText}>{message.content}</Text>
+            <Text style={styles.messageTimestamp}>
+              {formatMessageTimestamp(message.timestamp)}
+            </Text>
+          </View>
+        ))}
       </ScrollView>
 
       <View style={styles.inputContainer}>
@@ -162,6 +181,7 @@ const BoxChat = ({ navigation, route }) => {
           value={newMessage}
           onChangeText={setNewMessage}
           placeholder="Nhập tin nhắn"
+          ref={textInputRef}
         />
         <Pressable style={styles.sendButton} onPress={sendMessage}>
           <Text style={styles.sendButtonText}>Gửi</Text>
@@ -230,5 +250,9 @@ const styles = StyleSheet.create({
   sendButtonText: {
     fontSize: 16,
     fontWeight: "bold",
+  },
+  messageTimestamp: {
+    fontSize: 12,
+    color: "gray",
   },
 });

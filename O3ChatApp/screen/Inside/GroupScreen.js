@@ -9,14 +9,16 @@ import {
 import React, { useState } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { WINDOW_HEIGHT, WINDOW_WIDTH } from "./ChatSceen";
-const GroupScreen = () => {
+
+
+const GroupScreen = ( {navigation} ) => {
   return (
     <SafeAreaView style={{ flex: 1, alignItems: "center" }}>
       <LinearGradient
         colors={["#4AD8C7", "#B728A9"]}
         style={styles.background}
       />
-      <Pressable
+      <Pressable onPress={() => navigation.navigate("CreateGroupScreen")}
         style={{
           flexDirection: "row",
           backgroundColor: "white",

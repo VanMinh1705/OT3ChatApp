@@ -15,6 +15,7 @@ import { Dimensions } from "react-native";
 import { useFonts } from "expo-font";
 import { LinearGradient } from "expo-linear-gradient";
 import { DynamoDB } from "aws-sdk";
+import IconAnt from "react-native-vector-icons/AntDesign";
 import { ACCESS_KEY_ID, SECRET_ACCESS_KEY, REGION } from "@env";
 
 export const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } =
@@ -214,67 +215,65 @@ const FriendScreen = ({ user, navigation }) => {
 
   const handleChatWithFriend = async (friend, user) => {
     try {
-      // Kiểm tra xem bảng BoxChats có dữ liệu không
+      // Tạo khóa kết hợp từ số điện thoại của người gửi và người nhận
+      const senderReceiverKey = `${user.soDienThoai}_${friend.soDienThoai}`;
+      const receiverSenderKey = `${friend.soDienThoai}_${user.soDienThoai}`;
+
+      // Kiểm tra xem box chat đã tồn tại với khóa senderReceiverKey hoặc receiverSenderKey chưa
       const existingChatParams = {
-        TableName: "BoxChats",
+        RequestItems: {
+          BoxChats: {
+            Keys: [
+              { senderPhoneNumber: senderReceiverKey },
+              { senderPhoneNumber: receiverSenderKey },
+            ],
+          },
+        },
       };
       const existingChatData = await dynamoDB
-        .scan(existingChatParams)
+        .batchGet(existingChatParams)
         .promise();
 
-      let chatExists = false;
-
-      // Nếu bảng BoxChats có dữ liệu
-      if (existingChatData.Items.length > 0) {
-        // Kiểm tra xem đã tồn tại box chat giữa người gửi và người nhận chưa
-        for (const chat of existingChatData.Items) {
-          if (
-            (chat.senderPhoneNumber === user.soDienThoai &&
-              chat.receiverPhoneNumber === friend.soDienThoai) ||
-            (chat.senderPhoneNumber === friend.soDienThoai &&
-              chat.receiverPhoneNumber === user.soDienThoai)
-          ) {
-            // Nếu box chat đã tồn tại, đánh dấu và thoát khỏi vòng lặp
-            chatExists = true;
-            break;
-          }
-        }
-      }
-
-      // Nếu box chat chưa tồn tại, tạo mới
-      if (!chatExists) {
+      // Nếu không tìm thấy box chat cho cả hai khóa, tạo mới
+      if (existingChatData.Responses["BoxChats"].length === 0) {
         // Tạo box chat cho người gửi
         const senderChatParams = {
-          TableName: "BoxChats",
-          Item: {
-            senderPhoneNumber: user.soDienThoai,
-            receiverPhoneNumber: friend.soDienThoai,
-            messages: [],
-            // Thêm thông tin của người nhận vào box chat của người gửi
-            receiverInfo: {
-              soDienThoai: friend.soDienThoai,
-              hoTen: friend.hoTen,
-              avatarUser: friend.avatarUser,
-            },
+          RequestItems: {
+            BoxChats: [
+              {
+                PutRequest: {
+                  Item: {
+                    senderPhoneNumber: senderReceiverKey,
+                    receiverPhoneNumber: friend.soDienThoai,
+                    messages: [],
+                    // Thêm thông tin của người nhận vào box chat của người gửi
+                    receiverInfo: {
+                      soDienThoai: friend.soDienThoai,
+                      hoTen: friend.hoTen,
+                      avatarUser: friend.avatarUser,
+                    },
+                  },
+                },
+              },
+              {
+                PutRequest: {
+                  Item: {
+                    senderPhoneNumber: receiverSenderKey,
+                    receiverPhoneNumber: user.soDienThoai,
+                    messages: [],
+                    // Thêm thông tin của người gửi vào box chat của người nhận
+                    receiverInfo: {
+                      soDienThoai: user.soDienThoai,
+                      hoTen: user.hoTen,
+                      avatarUser: user.avatarUser,
+                    },
+                  },
+                },
+              },
+            ],
           },
         };
-        await dynamoDB.put(senderChatParams).promise();
-
-        // Tạo box chat cho người nhận
-        const receiverChatParams = {
-          TableName: "BoxChats",
-          Item: {
-            senderPhoneNumber: friend.soDienThoai,
-            receiverPhoneNumber: user.soDienThoai,
-            messages: [],
-            receiverInfo: {
-              soDienThoai: user.soDienThoai,
-              hoTen: user.hoTen,
-              avatarUser: user.avatarUser,
-            },
-          },
-        };
-        await dynamoDB.put(receiverChatParams).promise();
+        await dynamoDB.batchWrite(senderChatParams).promise();
       }
 
       // Chuyển đến màn hình BoxChat với thông tin của người bạn
@@ -283,13 +282,6 @@ const FriendScreen = ({ user, navigation }) => {
       console.error("Error handling chat with friend:", error);
     }
   };
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchFriends();
-      fetchFriendRequests();
-    }, [navigation])
-  );
 
   const [fontsLoaded] = useFonts({
     "keaniaone-regular": require("../../assets/fonts/KeaniaOne-Regular.ttf"),
@@ -340,30 +332,56 @@ const FriendScreen = ({ user, navigation }) => {
                 <FlatList
                   data={friendRequests}
                   renderItem={({ item }) => (
-                    <View style={styles.friendRequestItem}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        borderWidth: 1,
+                        borderRadius: 10,
+                        height: 60,
+                        width: 300,
+                        alignItems: "center",
+                        padding: 3,
+                      }}
+                    >
                       <Image
-                        style={styles.friendRequestImage}
+                        style={{
+                          width: 50,
+                          height: 50,
+                          borderWidth: 1,
+                          borderColor: "#000",
+                          borderRadius: 24,
+                        }}
                         source={{ uri: item.avatarUser }}
                       />
-                      <Text style={styles.friendRequestName}>{item.hoTen}</Text>
+                      <Text
+                        style={{
+                          color: "#000",
+                          textAlign: "center",
+                          marginLeft: 5,
+                          fontSize: 18,
+                          marginRight: 25,
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {item.hoTen}
+                      </Text>
                       <Pressable
-                        style={[styles.acceptButton]}
                         onPress={() => handleAcceptFriendRequest(item)}
                       >
-                        <Text style={styles.buttonText}>V</Text>
+                        <IconAnt name="checkcircle" size={30} color={"green"} />
                       </Pressable>
                       <Pressable
-                        style={[styles.rejectButton]}
+                        style={{ marginLeft: 20 }}
                         onPress={() => handleRejectFriendRequest(item)}
                       >
-                        <Text style={styles.buttonText}>X</Text>
+                        <IconAnt name="closecircle" size={30} color={"red"} />
                       </Pressable>
                     </View>
                   )}
                   keyExtractor={(item, index) => index.toString()}
                 />
                 <Pressable
-                  style={[styles.button, styles.buttonClose]}
+                  style={styles.buttonClose}
                   onPress={() => setModalVisible(!modalVisible)}
                 >
                   <Text style={styles.textStyle}>Đóng</Text>
@@ -385,9 +403,7 @@ const FriendScreen = ({ user, navigation }) => {
                     style={styles.avatarImage}
                     source={{ uri: friend.avatarUser }}
                   />
-                  <Pressable style={styles.menuTextContainer}>
-                    <Text style={styles.txtUser}>{friend.hoTen}</Text>
-                  </Pressable>
+                  <Text style={styles.txtUser}>{friend.hoTen}</Text>
                 </Pressable>
               ))
             ) : (
@@ -442,7 +458,7 @@ const styles = StyleSheet.create({
   avatarImage: {
     width: 46,
     height: 46,
-    borderRadius: 20,
+    borderRadius: 25,
     marginLeft: 13,
   },
   txtUser: {
@@ -477,7 +493,8 @@ const styles = StyleSheet.create({
     marginTop: 22,
   },
   modalView: {
-    width: "90%",
+    width: "95%",
+    margin: 20,
     backgroundColor: "white",
     borderRadius: 20,
     alignItems: "center",
@@ -494,14 +511,11 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     textAlign: "center",
   },
-  button: {
-    borderRadius: 20,
-    padding: 10,
-    elevation: 2,
-  },
   buttonClose: {
     backgroundColor: "#2196F3",
-    marginTop:10
+    borderRadius: 8,
+    width: 50,
+    marginTop: 10,
   },
   textStyle: {
     color: "white",

@@ -17,6 +17,7 @@ import IconAnt from "react-native-vector-icons/AntDesign";
 import { useFonts } from "expo-font";
 import { LinearGradient } from "expo-linear-gradient";
 import { DynamoDB } from "aws-sdk";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   ACCESS_KEY_ID,
   SECRET_ACCESS_KEY,
@@ -27,7 +28,7 @@ import {
 export const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } =
   Dimensions.get("window");
 
-const ChatScreen = ({ navigation, user }) => {
+const ChatScreen = ({ navigation, user, friend }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [friendRequestSent, setFriendRequestSent] = useState(false);
@@ -37,16 +38,23 @@ const ChatScreen = ({ navigation, user }) => {
     fetchBoxChats();
   }, []);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchBoxChats();
+    }, [])
+  );
+
   const fetchBoxChats = async () => {
     try {
+      const senderReceiverKey = user.soDienThoai.split("_")[0]; // Chỉ lấy phần trước dấu "_"
       const params = {
         TableName: "BoxChats",
-        KeyConditionExpression: "senderPhoneNumber = :senderPhoneNumber",
+        FilterExpression: "begins_with(senderPhoneNumber, :senderPhoneNumber)",
         ExpressionAttributeValues: {
-          ":senderPhoneNumber": user?.soDienThoai,
+          ":senderPhoneNumber": senderReceiverKey,
         },
       };
-      const response = await dynamoDB.query(params).promise();
+      const response = await dynamoDB.scan(params).promise();
       if (response.Items) {
         setBoxChats(response.Items);
       }
@@ -59,6 +67,7 @@ const ChatScreen = ({ navigation, user }) => {
     navigation.navigate("BoxChat", { friend, user });
   };
 
+  // Render danh sách các box chat
   // Render danh sách các box chat
   const renderBoxChats = () => {
     return boxChats.map((boxChat, index) => (
@@ -76,8 +85,15 @@ const ChatScreen = ({ navigation, user }) => {
             <Text style={styles.receiverName}>
               {boxChat.receiverInfo.hoTen}
             </Text>
-            <Text style={styles.receiverPhoneNumber}>
-              {boxChat.receiverPhoneNumber}
+            <Text style={styles.receiverMessage}>
+              {boxChat.messages.length > 0
+                ? boxChat.messages[boxChat.messages.length - 1].isSender
+                  ? "Bạn: " +
+                    boxChat.messages[boxChat.messages.length - 1].content
+                  : boxChat.receiverInfo.hoTen +
+                    ": " +
+                    boxChat.messages[boxChat.messages.length - 1].content // Lấy tên của người nhận
+                : ""}
             </Text>
           </View>
         </View>
@@ -229,28 +245,36 @@ const ChatScreen = ({ navigation, user }) => {
                 onChangeText={(text) => setPhoneNumber(text)}
                 value={phoneNumber}
               />
-              <Pressable
-                style={[
-                  styles.button,
-                  { backgroundColor: "red", marginTop: 10 },
-                ]}
-                onPress={() => {
-                  sendFriendRequest();
-                }}
-              >
-                <Text style={styles.textStyle}>Kết bạn</Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.button,
-                  { backgroundColor: "red", marginTop: 10 },
-                ]}
-                onPress={() => {
-                  setModalVisible(false);
-                }}
-              >
-                <Text style={styles.textStyle}>Hủy</Text>
-              </Pressable>
+              <View style={{ flexDirection: "row" }}>
+                <Pressable
+                  style={{
+                    left: -60,
+                    backgroundColor: "#3de36f",
+                    marginTop: 10,
+                    width: 60,
+                    borderRadius: 8,
+                  }}
+                  onPress={() => {
+                    sendFriendRequest();
+                  }}
+                >
+                  <Text style={styles.textStyle}>Kết bạn</Text>
+                </Pressable>
+                <Pressable
+                  style={{
+                    left: 60,
+                    backgroundColor: "#db8781",
+                    marginTop: 10,
+                    width: 60,
+                    borderRadius: 8,
+                  }}
+                  onPress={() => {
+                    setModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.textStyle}>Hủy</Text>
+                </Pressable>
+              </View>
             </View>
           </Modal>
         </View>
@@ -360,6 +384,9 @@ const styles = StyleSheet.create({
   },
   boxChatItem: {
     flexDirection: "row",
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    margin: 2,
     alignItems: "center",
     padding: 10,
     borderBottomWidth: 1,
@@ -382,7 +409,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 16,
   },
-  receiverPhoneNumber: {
+  receiverMessage: {
     fontSize: 14,
     color: "#888",
   },
