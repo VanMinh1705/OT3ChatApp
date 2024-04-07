@@ -24,14 +24,14 @@ import {
 
 const SignUpForm = ({ navigation }) => {
   const [hoTen, setHoTen] = useState("");
-  const [soDienThoai, setSoDienThoai] = useState("");
+  const [email, setEmail] = useState("");
   const [matKhau, setMatKhau] = useState("");
   const [nhapLaiMatKhau, setNhapLaiMatKhau] = useState("");
   const [avatarUser, setAvatarUser] = useState(null);
   const [fileType, setFileType] = useState(""); // Thêm state mới để lưu trữ fileType
   const [errors, setErrors] = useState({
     hoTen: "",
-    soDienThoai: "",
+    email: "",
     matKhau: "",
     nhapLaiMatKhau: "",
   });
@@ -68,29 +68,20 @@ const SignUpForm = ({ navigation }) => {
   const signUp = async () => {
     try {
       // Kiểm tra số điện thoại
-      if (!soDienThoai) {
+      if (!email) {
         setErrors((prevErrors) => ({
           ...prevErrors,
-          soDienThoai: "Số điện thoại không được để trống",
+          email: "email không được để trống",
         }));
         return;
-      } else if (soDienThoai.length !== 10) {
+      } else if (
+        !email.match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)
+      ) {
         setErrors((prevErrors) => ({
           ...prevErrors,
-          soDienThoai: "Số điện thoại phải có 10 số",
+          email: "email phải có dạng example@gmail.com",
         }));
         return;
-      } else if (!soDienThoai.match(/^(0)[0-9]{9}$/)) {
-        setErrors((prevErrors) => ({
-          ...prevErrors,
-          soDienThoai: "Số điện thoại phải có định dạng số 0 đầu tiên",
-        }));
-        return;
-      } else {
-        setErrors((prevErrors) => ({
-          ...prevErrors,
-          soDienThoai: "",
-        }));
       }
 
       // Kiểm tra tên
@@ -148,7 +139,7 @@ const SignUpForm = ({ navigation }) => {
         default:
           contentType = "application/octet-stream"; // Loại mặc định
       }
-      const filePath = `${soDienThoai}_${Date.now().toString()}.${fileType}`;
+      const filePath = `${email}_${Date.now().toString()}.${fileType}`;
 
       // Sử dụng fetch để tải dữ liệu hình ảnh từ URI
       const response = await fetch(avatarUser);
@@ -172,7 +163,7 @@ const SignUpForm = ({ navigation }) => {
           const paramsDynamoDb = {
             TableName: tableName,
             Item: {
-              soDienThoai: soDienThoai,
+              email: email,
               hoTen: hoTen,
               matKhau: matKhau,
               avatarUser: imageURL,
@@ -236,22 +227,21 @@ const SignUpForm = ({ navigation }) => {
             }}
             placeholder="Họ và Tên"
             onChangeText={(text) => setHoTen(text)}
+            value={hoTen}
           />
           <Text style={{ color: "red", fontSize: 12 }}>{errors.hoTen}</Text>
           <TextInput
             style={{
-              ...styles.inputSDT,
+              ...styles.inputEmail,
               color: "#000",
-              borderColor: errors.soDienThoai ? "red" : "transparent",
-              borderWidth: errors.soDienThoai ? 1 : 0,
+              borderColor: errors.email ? "red" : "transparent",
+              borderWidth: errors.email ? 1 : 0,
             }}
-            placeholder="Số điện thoại"
-            onChangeText={(text) => setSoDienThoai(text)}
-            keyboardType="phone-pad" // Bàn phím chỉ hiển thị số
+            placeholder="Email"
+            onChangeText={(text) => setEmail(text)}
+            value={email}
           />
-          <Text style={{ color: "red", fontSize: 12 }}>
-            {errors.soDienThoai}
-          </Text>
+          <Text style={{ color: "red", fontSize: 12 }}>{errors.email}</Text>
           <TextInput
             style={{
               ...styles.inputPass,
@@ -340,7 +330,7 @@ const styles = StyleSheet.create({
     paddingLeft: 10,
     marginTop: 36,
   },
-  inputSDT: {
+  inputEmail: {
     width: 318,
     height: 46,
     backgroundColor: "rgba(255, 255, 255, 0.80)",

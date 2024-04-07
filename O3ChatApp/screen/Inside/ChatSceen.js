@@ -30,7 +30,7 @@ export const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } =
 
 const ChatScreen = ({ navigation, user, friend }) => {
   const [modalVisible, setModalVisible] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [email, setEmail] = useState("");
   const [friendRequestSent, setFriendRequestSent] = useState(false);
   const [boxChats, setBoxChats] = useState([]);
 
@@ -46,7 +46,7 @@ const ChatScreen = ({ navigation, user, friend }) => {
 
   const fetchBoxChats = async () => {
     try {
-      const senderReceiverKey = user.soDienThoai.split("_")[0]; // Chỉ lấy phần trước dấu "_"
+      const senderReceiverKey = user.email.split("_")[0]; // Chỉ lấy phần trước dấu "_"
       const params = {
         TableName: "BoxChats",
         FilterExpression: "begins_with(senderPhoneNumber, :senderPhoneNumber)",
@@ -112,7 +112,7 @@ const ChatScreen = ({ navigation, user, friend }) => {
       // Kiểm tra số điện thoại có tồn tại trong bảng User không
       const userExistsParams = {
         TableName: DYNAMODB_TABLE_NAME,
-        Key: { soDienThoai: phoneNumber },
+        Key: { email: email },
       };
 
       const userData = await dynamoDB.get(userExistsParams).promise();
@@ -126,13 +126,13 @@ const ChatScreen = ({ navigation, user, friend }) => {
       // Kiểm tra xem số điện thoại đã kết bạn với bạn chưa
       const isFriendParams = {
         TableName: "Friends",
-        Key: { senderPhoneNumber: user?.soDienThoai },
+        Key: { senderPhoneNumber: user?.email },
       };
       const friendData = await dynamoDB.get(isFriendParams).promise();
 
       if (friendData.Item && friendData.Item.friends) {
         const isFriend = friendData.Item.friends.some(
-          (friend) => friend.soDienThoai === phoneNumber
+          (friend) => friend.email === email
         );
         if (isFriend) {
           // Hiển thị thông báo nếu đã kết bạn với người dùng này
@@ -142,7 +142,7 @@ const ChatScreen = ({ navigation, user, friend }) => {
       }
 
       // Kiểm tra nếu số điện thoại là của chính bạn
-      if (phoneNumber === user?.soDienThoai) {
+      if (email === user?.email) {
         alert("Đây là số điện thoại của bạn, không thể kết bạn!");
         return;
       }
@@ -150,13 +150,13 @@ const ChatScreen = ({ navigation, user, friend }) => {
       // Thêm thông tin của người nhận vào danh sách lời mời kết bạn của người gửi
       const addFriendRequestParams = {
         TableName: "FriendRequests",
-        Key: { soDienThoai: phoneNumber },
+        Key: { email: email },
         UpdateExpression:
           "SET friendRequests = list_append(if_not_exists(friendRequests, :empty_list), :request)",
         ExpressionAttributeValues: {
           ":request": [
             {
-              soDienThoai: user?.soDienThoai,
+              email: user?.email,
               hoTen: user?.hoTen,
               avatarUser: user?.avatarUser,
             },
@@ -241,9 +241,9 @@ const ChatScreen = ({ navigation, user, friend }) => {
             <View style={styles.modalView}>
               <TextInput
                 style={styles.input}
-                placeholder="Nhập số điện thoại"
-                onChangeText={(text) => setPhoneNumber(text)}
-                value={phoneNumber}
+                placeholder="Nhập Email"
+                onChangeText={(text) => setEmail(text)}
+                value={email}
               />
               <View style={{ flexDirection: "row" }}>
                 <Pressable

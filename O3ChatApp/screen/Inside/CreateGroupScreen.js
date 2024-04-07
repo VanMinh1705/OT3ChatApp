@@ -9,9 +9,9 @@ import {
   TextInput,
   Pressable,
   Alert,
-  BackHandler
+  BackHandler,
 } from "react-native";
-import React, {useEffect} from "react";
+import React, { useEffect } from "react";
 import { Dimensions } from "react-native";
 import IconAnt from "react-native-vector-icons/AntDesign";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
@@ -31,7 +31,8 @@ import { useState } from "react";
 export const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } =
   Dimensions.get("window");
 
-const CreateGroupScreen = ({ navigation, user }) => {
+const CreateGroupScreen = ({ navigation, route }) => {
+  const { user } = route.params;
   const [fontsLoaded] = useFonts({
     "keaniaone-regular": require("../../assets/fonts/KeaniaOne-Regular.ttf"),
   });
@@ -41,35 +42,34 @@ const CreateGroupScreen = ({ navigation, user }) => {
   const [fileType, setFileType] = useState("");
   const bucketName = S3_BUCKET_NAME;
   const tableName = DYNAMODB_TABLE_NAME;
-  
-  // const dynamoDB = new DynamoDB.DocumentClient({
-  //   region: REGION,
-  //   accessKeyId: ACCESS_KEY_ID,
-  //   secretAccessKey: SECRET_ACCESS_KEY,
-  // });
 
-  // const fetchFriends = async () => {
-  //   try {
-  //     const getFriendsParams = {
-  //       TableName: "Friends",
-  //       Key: { senderPhoneNumber: user?.soDienThoai },
-  //     };
-  //     const friendData = await dynamoDB.get(getFriendsParams).promise();
+  const dynamoDB = new DynamoDB.DocumentClient({
+    region: REGION,
+    accessKeyId: ACCESS_KEY_ID,
+    secretAccessKey: SECRET_ACCESS_KEY,
+  });
 
-  //     if (friendData.Item && friendData.Item.friends) {
-  //       setFriends(friendData.Item.friends);
-  //     } else {
-  //       setFriends([]);
-  //     }
-  //   } catch (error) {
-  //     console.error("Error fetching friends:", error);
-  //   }
-  // };
+  const fetchFriends = async () => {
+    try {
+      const getFriendsParams = {
+        TableName: "Friends",
+        Key: { senderPhoneNumber: user?.email },
+      };
+      const friendData = await dynamoDB.get(getFriendsParams).promise();
 
- 
-  // useEffect(() => {
-  //   fetchFriends();
-  // }, [user]);
+      if (friendData.Item && friendData.Item.friends) {
+        setFriends(friendData.Item.friends);
+      } else {
+        setFriends([]);
+      }
+    } catch (error) {
+      console.error("Error fetching friends:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchFriends();
+  }, [user]);
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
@@ -138,9 +138,7 @@ const CreateGroupScreen = ({ navigation, user }) => {
       }
       const response = await fetch(avatarUri);
       const blob = await response.blob();
-      const filePath = `${
-        user?.soDienThoai
-      }_${Date.now().toString()}.${fileType}`;
+      const filePath = `${user?.email}_${Date.now().toString()}.${fileType}`;
 
       const s3 = new S3({
         region: REGION,
@@ -174,7 +172,7 @@ const CreateGroupScreen = ({ navigation, user }) => {
 
       const paramsDynamoDb = {
         TableName: tableName,
-        Key: { soDienThoai: user.soDienThoai },
+        Key: { email: user.email },
         UpdateExpression: "set avatarUser = :avatar",
         ExpressionAttributeValues: {
           ":avatar": avatarUrl,
@@ -202,7 +200,11 @@ const CreateGroupScreen = ({ navigation, user }) => {
       </SafeAreaView>
 
       <SafeAreaView style={styles.header}>
-        <Text style={{fontSize:18,textAlign:'center',alignItems:'center'}}>Nhóm mới</Text>
+        <Text
+          style={{ fontSize: 18, textAlign: "center", alignItems: "center" }}
+        >
+          Nhóm mới
+        </Text>
       </SafeAreaView>
       <View style={styles.paddingForHeader} />
       <View style={styles.viewContent}>
@@ -211,68 +213,67 @@ const CreateGroupScreen = ({ navigation, user }) => {
           style={styles.background}
         />
 
-
         {/* Chọn ảnh nhóm và đặt tên nhóm */}
-       <View style={styles.infoPersonal}>
-        <View style={{flexDirection:'row', marginTop:20}}>
-          <Pressable onPress={pickAvatar}>
-            <Image
+        <View style={styles.infoPersonal}>
+          <View style={{ flexDirection: "row", marginTop: 20 }}>
+            <Pressable onPress={pickAvatar}>
+              <Image
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 25,
+                }}
+                source={
+                  avatarUri
+                    ? { uri: avatarUri }
+                    : require("../../assets/img/no-avatar.png")
+                }
+              />
+            </Pressable>
+            <View style={{ marginLeft: 10, flexDirection: "row" }}>
+              <TextInput
+                style={[
+                  styles.textInput,
+                  isInputFocused && styles.textInputFocused,
+                ]}
+                placeholder="Đặt tên nhóm"
+                onFocus={() => setIsInputFocused(true)}
+                onBlur={() => setIsInputFocused(false)}
+              />
+            </View>
+          </View>
+
+          {/* Tìm tên danh bạ */}
+          <View>
+            <View
               style={{
-                width: 40,
-                height: 40,
-                borderRadius: 25,
+                width: "95%",
+                borderRadius: 10,
+                flexDirection: "row",
+                backgroundColor: "#DDDDDD",
+                marginTop: 20,
               }}
-              source={
-                avatarUri
-                  ? { uri: avatarUri }
-                  : require("../../assets/img/no-avatar.png")
-              }
-            />
-          </Pressable>
-          <View style={{ marginLeft: 10, flexDirection:'row'}}>
-          <TextInput
-              style={[
-                styles.textInput,
-                isInputFocused && styles.textInputFocused
-              ]}
-              placeholder="Đặt tên nhóm"
-              onFocus={() => setIsInputFocused(true)}
-              onBlur={() => setIsInputFocused(false)}
-            />
-
+            >
+              <IconAnt
+                name="search1"
+                size={25}
+                color={"#fff"}
+                style={{ marginLeft: 10, marginTop: 3 }}
+              />
+              <TextInput
+                placeholder="Tìm tên hoặc số điện thoại"
+                placeholderTextColor={"#fff"}
+                style={{
+                  width: "90%",
+                  height: 30,
+                  color: "#000",
+                  fontSize: 16,
+                  borderRadius: 10,
+                  paddingLeft: 10,
+                }}
+              />
+            </View>
           </View>
-        </View>
-
-        
-
-        {/* Tìm tên danh bạ */}
-        <View>
-          <View
-          style={{
-            width:"95%",
-            borderRadius:10,
-            flexDirection: "row",
-            backgroundColor:'#DDDDDD',
-            marginTop:20
-          }}
-        >
-          <IconAnt name="search1" size={25} color={"#fff"} style={{marginLeft:10, marginTop:3}}/>
-          <TextInput
-            placeholder="Tìm tên hoặc số điện thoại"
-            placeholderTextColor={"#fff"}
-            style={{
-              width: "90%",
-              height: 30,
-              color: "#000",
-              fontSize: 16,
-              borderRadius: 10,
-              paddingLeft: 10,
-            }}
-          />
-
-        </View>
-          </View>
-          
         </View>
         <View style={styles.contactPhone}>
           <ScrollView>
@@ -338,7 +339,7 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     borderColor: "#ccc",
   },
-  
+
   txtUser: {
     color: "#000",
     fontSize: 18,
@@ -351,10 +352,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     width: "90%",
     borderBottomWidth: 1,
-    borderBottomColor: "#000"
+    borderBottomColor: "#000",
   },
   textInputFocused: {
-    borderBottomColor: "#00f" // Màu border khi ô nhập được chọn
+    borderBottomColor: "#00f", // Màu border khi ô nhập được chọn
   },
   contactPhone: {
     backgroundColor: "white",

@@ -94,9 +94,7 @@ const UserScreen = ({ navigation, user }) => {
       }
       const response = await fetch(avatarUri);
       const blob = await response.blob();
-      const filePath = `${
-        user?.soDienThoai
-      }_${Date.now().toString()}.${fileType}`;
+      const filePath = `${user?.email}_${Date.now().toString()}.${fileType}`;
 
       const s3 = new S3({
         region: REGION,
@@ -130,7 +128,7 @@ const UserScreen = ({ navigation, user }) => {
 
       const paramsDynamoDb = {
         TableName: tableName,
-        Key: { soDienThoai: user.soDienThoai },
+        Key: { email: user.email },
         UpdateExpression: "set avatarUser = :avatar",
         ExpressionAttributeValues: {
           ":avatar": avatarUrl,

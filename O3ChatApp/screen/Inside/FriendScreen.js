@@ -37,7 +37,7 @@ const FriendScreen = ({ user, navigation }) => {
     try {
       const getFriendsParams = {
         TableName: "Friends",
-        Key: { senderPhoneNumber: user?.soDienThoai },
+        Key: { senderPhoneNumber: user?.email },
       };
       const friendData = await dynamoDB.get(getFriendsParams).promise();
 
@@ -55,7 +55,7 @@ const FriendScreen = ({ user, navigation }) => {
     try {
       const getFriendRequestsParams = {
         TableName: "FriendRequests",
-        Key: { soDienThoai: user?.soDienThoai },
+        Key: { email: user?.email },
       };
       const friendRequestsData = await dynamoDB
         .get(getFriendRequestsParams)
@@ -85,7 +85,7 @@ const FriendScreen = ({ user, navigation }) => {
       // Lấy danh sách bạn bè của người gửi lời mời từ cơ sở dữ liệu
       const getSenderFriendsParams = {
         TableName: "Friends",
-        Key: { senderPhoneNumber: friendRequest.soDienThoai },
+        Key: { senderPhoneNumber: friendRequest.email },
       };
       const senderFriendData = await dynamoDB
         .get(getSenderFriendsParams)
@@ -100,7 +100,7 @@ const FriendScreen = ({ user, navigation }) => {
       }
       const updateSenderFriendEntry = {
         TableName: "Friends",
-        Key: { senderPhoneNumber: friendRequest.soDienThoai },
+        Key: { senderPhoneNumber: friendRequest.email },
         UpdateExpression: "set friends = :friends",
         ExpressionAttributeValues: { ":friends": updatedSenderFriends },
       };
@@ -109,7 +109,7 @@ const FriendScreen = ({ user, navigation }) => {
       // Lấy danh sách bạn bè của người nhận lời mời từ cơ sở dữ liệu
       const getReceiverFriendsParams = {
         TableName: "Friends",
-        Key: { senderPhoneNumber: user?.soDienThoai },
+        Key: { senderPhoneNumber: user?.email },
       };
       const receiverFriendData = await dynamoDB
         .get(getReceiverFriendsParams)
@@ -127,7 +127,7 @@ const FriendScreen = ({ user, navigation }) => {
       }
       const updateReceiverFriendEntry = {
         TableName: "Friends",
-        Key: { senderPhoneNumber: user?.soDienThoai },
+        Key: { senderPhoneNumber: user?.email },
         UpdateExpression: "set friends = :friends",
         ExpressionAttributeValues: { ":friends": updatedReceiverFriends },
       };
@@ -136,7 +136,7 @@ const FriendScreen = ({ user, navigation }) => {
       // Xóa lời mời kết bạn đã được chấp nhận khỏi danh sách lời mời kết bạn
       const getRequestParams = {
         TableName: "FriendRequests",
-        Key: { soDienThoai: user?.soDienThoai },
+        Key: { email: user?.email },
       };
       const requestResult = await dynamoDB.get(getRequestParams).promise();
 
@@ -147,13 +147,13 @@ const FriendScreen = ({ user, navigation }) => {
 
       // Lọc ra mảng friendRequests mới mà không chứa friendRequest cần xóa
       const updatedFriendRequests = requestResult.Item.friendRequests.filter(
-        (request) => request.soDienThoai !== friendRequest.soDienThoai
+        (request) => request.email !== friendRequest.email
       );
 
       // Cập nhật lại mảng friendRequests mới vào cơ sở dữ liệu
       const updateParams = {
         TableName: "FriendRequests",
-        Key: { soDienThoai: user?.soDienThoai },
+        Key: { email: user?.email },
         UpdateExpression: "SET friendRequests = :updatedRequests",
         ExpressionAttributeValues: {
           ":updatedRequests": updatedFriendRequests,
@@ -174,7 +174,7 @@ const FriendScreen = ({ user, navigation }) => {
       // Lấy danh sách friendRequests từ cơ sở dữ liệu
       const getRequestParams = {
         TableName: "FriendRequests",
-        Key: { soDienThoai: user?.soDienThoai },
+        Key: { email: user?.email },
       };
       const requestResult = await dynamoDB.get(getRequestParams).promise();
 
@@ -185,13 +185,13 @@ const FriendScreen = ({ user, navigation }) => {
 
       // Lọc ra mảng friendRequests mới mà không chứa friendRequest cần xóa
       const updatedFriendRequests = requestResult.Item.friendRequests.filter(
-        (request) => request.soDienThoai !== friendRequest.soDienThoai
+        (request) => request.email !== friendRequest.email
       );
 
       // Cập nhật lại mảng friendRequests mới vào cơ sở dữ liệu
       const updateParams = {
         TableName: "FriendRequests",
-        Key: { soDienThoai: user?.soDienThoai },
+        Key: { email: user?.email },
         UpdateExpression: "SET friendRequests = :updatedRequests",
         ExpressionAttributeValues: {
           ":updatedRequests": updatedFriendRequests,
@@ -216,8 +216,8 @@ const FriendScreen = ({ user, navigation }) => {
   const handleChatWithFriend = async (friend, user) => {
     try {
       // Tạo khóa kết hợp từ số điện thoại của người gửi và người nhận
-      const senderReceiverKey = `${user.soDienThoai}_${friend.soDienThoai}`;
-      const receiverSenderKey = `${friend.soDienThoai}_${user.soDienThoai}`;
+      const senderReceiverKey = `${user.email}_${friend.email}`;
+      const receiverSenderKey = `${friend.email}_${user.email}`;
 
       // Kiểm tra xem box chat đã tồn tại với khóa senderReceiverKey hoặc receiverSenderKey chưa
       const existingChatParams = {
@@ -244,11 +244,11 @@ const FriendScreen = ({ user, navigation }) => {
                 PutRequest: {
                   Item: {
                     senderPhoneNumber: senderReceiverKey,
-                    receiverPhoneNumber: friend.soDienThoai,
+                    receiverPhoneNumber: friend.email,
                     messages: [],
                     // Thêm thông tin của người nhận vào box chat của người gửi
                     receiverInfo: {
-                      soDienThoai: friend.soDienThoai,
+                      email: friend.email,
                       hoTen: friend.hoTen,
                       avatarUser: friend.avatarUser,
                     },
@@ -259,11 +259,11 @@ const FriendScreen = ({ user, navigation }) => {
                 PutRequest: {
                   Item: {
                     senderPhoneNumber: receiverSenderKey,
-                    receiverPhoneNumber: user.soDienThoai,
+                    receiverPhoneNumber: user.email,
                     messages: [],
                     // Thêm thông tin của người gửi vào box chat của người nhận
                     receiverInfo: {
-                      soDienThoai: user.soDienThoai,
+                      email: user.email,
                       hoTen: user.hoTen,
                       avatarUser: user.avatarUser,
                     },
@@ -522,43 +522,43 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     textAlign: "center",
   },
-  friendRequestItem:{
-    flexDirection: 'row',
-    borderWidth:1, 
-    borderRadius:10,
-    padding:5
+  friendRequestItem: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 5,
   },
-  friendRequestName:{
-    textAlign:'center', 
-    alignSelf:'center',
-    fontSize:19
+  friendRequestName: {
+    textAlign: "center",
+    alignSelf: "center",
+    fontSize: 19,
   },
-  friendRequestImage:{
-    width: 40, 
-    height: 40, 
-    borderRadius:30 
+  friendRequestImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 30,
   },
-  acceptButton:{
-    marginTop:5,
-    width:30,
-    height:30,
-    marginLeft:5,
-    borderRadius:20,
-    justifyContent:'center',
-    backgroundColor:'green',
-    alignItems:'center',
+  acceptButton: {
+    marginTop: 5,
+    width: 30,
+    height: 30,
+    marginLeft: 5,
+    borderRadius: 20,
+    justifyContent: "center",
+    backgroundColor: "green",
+    alignItems: "center",
   },
-  rejectButton:{
-    marginTop:5,
-    width:30,
-    height:30,
-    marginLeft:5,
-    borderRadius:20,
-    justifyContent:'center',
-    alignItems:'center',
-    backgroundColor:'red',
+  rejectButton: {
+    marginTop: 5,
+    width: 30,
+    height: 30,
+    marginLeft: 5,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "red",
   },
-  buttonText:{
-    fontSize:12,
-  }
+  buttonText: {
+    fontSize: 12,
+  },
 });
