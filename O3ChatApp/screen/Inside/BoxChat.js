@@ -38,7 +38,9 @@ const BoxChat = ({ navigation, route }) => {
   }, [navigation]);
 
   useEffect(() => {
-    fetchMessages();
+    // fetchMessages();
+    const interval = setInterval(fetchMessages, 500); // Gọi fetch tin nhắn mỗi 1 giây
+    return () => clearInterval(interval); // Xóa interval khi component unmount
   }, []);
 
   const fetchMessages = async () => {

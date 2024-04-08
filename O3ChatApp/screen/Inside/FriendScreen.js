@@ -215,6 +215,11 @@ const FriendScreen = ({ user, navigation }) => {
 
   const handleChatWithFriend = async (friend, user) => {
     try {
+      if (!friend || !friend.email || !user || !user.email) {
+        console.error("Invalid friend or user information");
+        return;
+      }
+
       // Tạo khóa kết hợp từ số điện thoại của người gửi và người nhận
       const senderReceiverKey = `${user.email}_${friend.email}`;
       const receiverSenderKey = `${friend.email}_${user.email}`;
@@ -234,47 +239,61 @@ const FriendScreen = ({ user, navigation }) => {
         .batchGet(existingChatParams)
         .promise();
 
-      // Nếu không tìm thấy box chat cho cả hai khóa, tạo mới
-      if (existingChatData.Responses["BoxChats"].length === 0) {
-        // Tạo box chat cho người gửi
-        const senderChatParams = {
-          RequestItems: {
-            BoxChats: [
-              {
-                PutRequest: {
-                  Item: {
-                    senderPhoneNumber: senderReceiverKey,
-                    receiverPhoneNumber: friend.email,
-                    messages: [],
-                    // Thêm thông tin của người nhận vào box chat của người gửi
-                    receiverInfo: {
-                      email: friend.email,
-                      hoTen: friend.hoTen,
-                      avatarUser: friend.avatarUser,
-                    },
-                  },
-                },
-              },
-              {
-                PutRequest: {
-                  Item: {
-                    senderPhoneNumber: receiverSenderKey,
-                    receiverPhoneNumber: user.email,
-                    messages: [],
-                    // Thêm thông tin của người gửi vào box chat của người nhận
-                    receiverInfo: {
-                      email: user.email,
-                      hoTen: user.hoTen,
-                      avatarUser: user.avatarUser,
-                    },
-                  },
-                },
-              },
-            ],
-          },
-        };
-        await dynamoDB.batchWrite(senderChatParams).promise();
+      // Kiểm tra nếu không có dữ liệu hoặc dữ liệu không đúng định dạng
+      if (
+        !existingChatData ||
+        !existingChatData.Responses ||
+        !existingChatData.Responses["BoxChats"]
+      ) {
+        console.error("Invalid chat data format");
+        return;
       }
+
+      // Nếu có box chat cho cả hai khóa, chuyển đến màn hình BoxChat
+      if (existingChatData.Responses["BoxChats"].length > 0) {
+        navigation.navigate("BoxChat", { friend, user });
+        return;
+      }
+
+      // Nếu không tìm thấy box chat cho cả hai khóa, tạo mới
+      // Tạo box chat cho người gửi
+      const senderChatParams = {
+        RequestItems: {
+          BoxChats: [
+            {
+              PutRequest: {
+                Item: {
+                  senderPhoneNumber: senderReceiverKey,
+                  receiverPhoneNumber: friend.email,
+                  messages: [],
+                  // Thêm thông tin của người nhận vào box chat của người gửi
+                  receiverInfo: {
+                    email: friend.email,
+                    hoTen: friend.hoTen,
+                    avatarUser: friend.avatarUser,
+                  },
+                },
+              },
+            },
+            {
+              PutRequest: {
+                Item: {
+                  senderPhoneNumber: receiverSenderKey,
+                  receiverPhoneNumber: user.email,
+                  messages: [],
+                  // Thêm thông tin của người gửi vào box chat của người nhận
+                  receiverInfo: {
+                    email: user.email,
+                    hoTen: user.hoTen,
+                    avatarUser: user.avatarUser,
+                  },
+                },
+              },
+            },
+          ],
+        },
+      };
+      await dynamoDB.batchWrite(senderChatParams).promise();
 
       // Chuyển đến màn hình BoxChat với thông tin của người bạn
       navigation.navigate("BoxChat", { friend, user });

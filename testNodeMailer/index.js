@@ -1,45 +1,28 @@
 const express = require("express");
-const nodemailer = require("nodemailer");
-const generatorOTP = require("./generatorOTP");
-const app = express();
-app.use(express.json());
+const http = require("http");
+const socketIo = require("socket.io");
 
-app.post("/send-otp", async (req, res) => {
-  let transporter = nodemailer.createTransport({
-    service: "gmail",
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    auth: {
-      user: "huynhvminhofficial@gmail.com",
-      pass: "qxnd fbps cbhl oamo",
-    },
+const app = express();
+const server = http.createServer(app);
+const io = socketIo(server);
+
+const PORT = 3000;
+
+io.on("connection", (socket) => {
+  console.log("A user connected");
+
+  // Xử lý khi một tin nhắn được gửi từ client
+  socket.on("message", (data) => {
+    // Phân phát tin nhắn đến tất cả các client khác
+    socket.broadcast.emit("message", data);
   });
 
-  // Tạo OTP ngẫu nhiên 6 chữ số
-  let otp = generatorOTP();
-
-  let mailOptions = {
-    from: {
-      name: "Minh Huynh",
-      address: "huynhvminhofficial@gmail.com",
-    },
-    to: "flashtime1705@gmail.com",
-    subject: "OTP for Verification",
-    text: `Your OTP is: ${otp}`,
-  };
-
-  const sendMail = async (transporter, mailOptions) => {
-    try {
-      await transporter.sendMail(mailOptions);
-      console.log("Email sent successfully");
-      res.json({ message: "Email sent successfully", otp: otp });
-    } catch (error) {
-      console.log(error);
-      res.status(500).json({ error: "An error occurred while sending email" });
-    }
-  };
-  sendMail(transporter, mailOptions);
+  // Xử lý khi một client ngắt kết nối
+  socket.on("disconnect", () => {
+    console.log("A user disconnected");
+  });
 });
 
-app.listen(3000, () => console.log("Server started on port 3000"));
+server.listen(PORT, () => {
+  console.log(`WebSocket server is running on port ${PORT}`);
+});
