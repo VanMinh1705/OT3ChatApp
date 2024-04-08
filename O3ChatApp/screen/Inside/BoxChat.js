@@ -48,7 +48,7 @@ const BoxChat = ({ navigation, route }) => {
       const senderParams = {
         TableName: "BoxChats",
         Key: {
-          senderPhoneNumber: `${user.email}_${friend.email}`,
+          senderEmail: `${user.email}_${friend.email}`,
         },
       };
       const senderResponse = await dynamoDB.get(senderParams).promise();
@@ -78,16 +78,16 @@ const BoxChat = ({ navigation, route }) => {
 
     const senderMessage = {
       content: newMessage,
-      senderPhoneNumber: `${user.email}_${friend.email}`,
-      receiverPhoneNumber: friend.email,
+      senderEmail: `${user.email}_${friend.email}`,
+      receiverEmail: friend.email,
       timestamp: timestamp,
       isSender: true,
     };
 
     const receiverMessage = {
       content: newMessage,
-      senderPhoneNumber: `${friend.email}_${user.email}`,
-      receiverPhoneNumber: user.email,
+      senderEmail: `${friend.email}_${user.email}`,
+      receiverEmail: user.email,
       timestamp: timestamp,
       isSender: false,
     };
@@ -96,7 +96,7 @@ const BoxChat = ({ navigation, route }) => {
       const senderParams = {
         TableName: "BoxChats",
         Key: {
-          senderPhoneNumber: `${user.email}_${friend.email}`,
+          senderEmail: `${user.email}_${friend.email}`,
         },
         UpdateExpression: "SET messages = list_append(messages, :newMessage)",
         ExpressionAttributeValues: {
@@ -109,7 +109,7 @@ const BoxChat = ({ navigation, route }) => {
       const receiverParams = {
         TableName: "BoxChats",
         Key: {
-          senderPhoneNumber: `${friend.email}_${user.email}`,
+          senderEmail: `${friend.email}_${user.email}`,
         },
         UpdateExpression: "SET messages = list_append(messages, :newMessage)",
         ExpressionAttributeValues: {
