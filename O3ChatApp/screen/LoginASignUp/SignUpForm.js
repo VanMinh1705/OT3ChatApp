@@ -99,10 +99,10 @@ const SignUpForm = ({ navigation }) => {
       }
 
       // Kiểm tra mật khẩu
-      if (!matKhau.match(/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])[0-9a-zA-Z]+$/)) {
+      if (!/^.{8,}$/.test(matKhau)) {
         setErrors((prevErrors) => ({
           ...prevErrors,
-          matKhau: "Mật khẩu phải có chữ hoa, chữ thường và số",
+          matKhau: "Mật khẩu phải có ít nhất 8 ký tự",
         }));
         return;
       } else if (matKhau !== nhapLaiMatKhau) {
@@ -159,27 +159,26 @@ const SignUpForm = ({ navigation }) => {
         } else {
           const imageURL = data.Location;
 
-          // Lưu thông tin người dùng vào DynamoDB
-          const paramsDynamoDb = {
-            TableName: tableName,
-            Item: {
-              email: email,
-              hoTen: hoTen,
-              matKhau: matKhau,
-              avatarUser: imageURL,
-            },
-          };
-
           try {
-            const dynamoDB = new DynamoDB.DocumentClient({
-              region: REGION,
-              accessKeyId: ACCESS_KEY_ID,
-              secretAccessKey: SECRET_ACCESS_KEY,
-            });
+            const responseOTP = await fetch(
+              "http://192.168.1.28:3000/send-otp",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ email }),
+              }
+            );
 
-            await dynamoDB.put(paramsDynamoDb).promise();
-            Alert.alert("Đăng ký thành công");
-            navigation.navigate("LoginForm");
+            const dataOTP = await responseOTP.json();
+            console.log(dataOTP);
+            navigation.navigate("PhoneAuthScreen", {
+              email,
+              hoTen,
+              matKhau,
+              imageURL,
+            });
           } catch (error) {
             console.error("Error saving user data to DynamoDB:", error);
             Alert.alert("Đăng ký thất bại");

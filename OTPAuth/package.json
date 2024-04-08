@@ -11,6 +11,9 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@react-navigation/native": "^6.1.17",
+    "@react-navigation/native-stack": "^6.9.26",
+    "aws-sdk": "^2.1594.0",
     "cors": "^2.8.5",
     "expo": "~50.0.14",
     "expo-status-bar": "~1.11.1",

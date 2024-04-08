@@ -122,7 +122,7 @@ export default function App() {
         <Stack.Screen name="BoxChat" component={BoxChat} />
         <Stack.Screen name="GroupScreen" component={GroupScreen} />
         <Stack.Screen name="CreateGroupScreen" component={CreateGroupScreen} />
-        {/* <Stack.Screen name="PhoneAuthScreen" component={PhoneAuthScreen} /> */}
+        <Stack.Screen name="PhoneAuthScreen" component={PhoneAuthScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
