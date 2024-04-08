@@ -37,7 +37,7 @@ const FriendScreen = ({ user, navigation }) => {
     try {
       const getFriendsParams = {
         TableName: "Friends",
-        Key: { senderPhoneNumber: user?.email },
+        Key: { senderEmail: user?.email },
       };
       const friendData = await dynamoDB.get(getFriendsParams).promise();
 
@@ -85,7 +85,7 @@ const FriendScreen = ({ user, navigation }) => {
       // Lấy danh sách bạn bè của người gửi lời mời từ cơ sở dữ liệu
       const getSenderFriendsParams = {
         TableName: "Friends",
-        Key: { senderPhoneNumber: friendRequest.email },
+        Key: { senderEmail: friendRequest.email },
       };
       const senderFriendData = await dynamoDB
         .get(getSenderFriendsParams)
@@ -100,7 +100,7 @@ const FriendScreen = ({ user, navigation }) => {
       }
       const updateSenderFriendEntry = {
         TableName: "Friends",
-        Key: { senderPhoneNumber: friendRequest.email },
+        Key: { senderEmail: friendRequest.email },
         UpdateExpression: "set friends = :friends",
         ExpressionAttributeValues: { ":friends": updatedSenderFriends },
       };
@@ -109,7 +109,7 @@ const FriendScreen = ({ user, navigation }) => {
       // Lấy danh sách bạn bè của người nhận lời mời từ cơ sở dữ liệu
       const getReceiverFriendsParams = {
         TableName: "Friends",
-        Key: { senderPhoneNumber: user?.email },
+        Key: { senderEmail: user?.email },
       };
       const receiverFriendData = await dynamoDB
         .get(getReceiverFriendsParams)
@@ -127,7 +127,7 @@ const FriendScreen = ({ user, navigation }) => {
       }
       const updateReceiverFriendEntry = {
         TableName: "Friends",
-        Key: { senderPhoneNumber: user?.email },
+        Key: { senderEmail: user?.email },
         UpdateExpression: "set friends = :friends",
         ExpressionAttributeValues: { ":friends": updatedReceiverFriends },
       };
@@ -229,8 +229,8 @@ const FriendScreen = ({ user, navigation }) => {
         RequestItems: {
           BoxChats: {
             Keys: [
-              { senderPhoneNumber: senderReceiverKey },
-              { senderPhoneNumber: receiverSenderKey },
+              { senderEmail: senderReceiverKey },
+              { senderEmail: receiverSenderKey },
             ],
           },
         },
@@ -263,8 +263,8 @@ const FriendScreen = ({ user, navigation }) => {
             {
               PutRequest: {
                 Item: {
-                  senderPhoneNumber: senderReceiverKey,
-                  receiverPhoneNumber: friend.email,
+                  senderEmail: senderReceiverKey,
+                  receiverEmail: friend.email,
                   messages: [],
                   // Thêm thông tin của người nhận vào box chat của người gửi
                   receiverInfo: {
@@ -278,8 +278,8 @@ const FriendScreen = ({ user, navigation }) => {
             {
               PutRequest: {
                 Item: {
-                  senderPhoneNumber: receiverSenderKey,
-                  receiverPhoneNumber: user.email,
+                  senderEmail: receiverSenderKey,
+                  receiverEmail: user.email,
                   messages: [],
                   // Thêm thông tin của người gửi vào box chat của người nhận
                   receiverInfo: {

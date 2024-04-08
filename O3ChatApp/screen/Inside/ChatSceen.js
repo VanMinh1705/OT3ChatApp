@@ -33,6 +33,8 @@ const ChatScreen = ({ navigation, user, friend }) => {
   const [email, setEmail] = useState("");
   const [friendRequestSent, setFriendRequestSent] = useState(false);
   const [boxChats, setBoxChats] = useState([]);
+  const [searchResult, setSearchResult] = useState([]);
+  const [searchedUser, setSearchedUser] = useState(null);
 
   useEffect(() => {
     fetchBoxChats();
@@ -49,9 +51,9 @@ const ChatScreen = ({ navigation, user, friend }) => {
       const senderReceiverKey = user.email.split("_")[0]; // Chỉ lấy phần trước dấu "_"
       const params = {
         TableName: "BoxChats",
-        FilterExpression: "begins_with(senderPhoneNumber, :senderPhoneNumber)",
+        FilterExpression: "begins_with(senderEmail, :senderEmail)",
         ExpressionAttributeValues: {
-          ":senderPhoneNumber": senderReceiverKey,
+          ":senderEmail": senderReceiverKey,
         },
       };
       const response = await dynamoDB.scan(params).promise();
@@ -66,7 +68,36 @@ const ChatScreen = ({ navigation, user, friend }) => {
   const handleChatWithFriend = (friend) => {
     navigation.navigate("BoxChat", { friend, user });
   };
-
+  const searchUser = async () => {
+    try {
+      const params = {
+        TableName: DYNAMODB_TABLE_NAME,
+        FilterExpression: "email = :email",
+        ExpressionAttributeValues: {
+          ":email": email,
+        },
+      };
+      const response = await dynamoDB.scan(params).promise();
+      if (response.Items) {
+        setSearchResult(response.Items);
+      } else {
+        setSearchResult([]);
+      }
+    } catch (error) {
+      console.error("Error searching user:", error);
+      setSearchResult([]);
+    }
+  };
+  const SearchResultItem = ({ user }) => {
+    return (
+      <View style={styles.searchResultItem}>
+        <Text style={styles.searchResultName}>{user.hoTen}</Text>
+        <Text style={styles.searchResultEmail}>{user.email}</Text>
+        {/* Hiển thị các thông tin khác của người dùng nếu cần */}
+      </View>
+    );
+  };
+  
   // Render danh sách các box chat
   // Render danh sách các box chat
   const renderBoxChats = () => {
@@ -109,7 +140,7 @@ const ChatScreen = ({ navigation, user, friend }) => {
 
   const sendFriendRequest = async () => {
     try {
-      // Kiểm tra số điện thoại có tồn tại trong bảng User không
+      // Kiểm tra email có tồn tại trong bảng User không
       const userExistsParams = {
         TableName: DYNAMODB_TABLE_NAME,
         Key: { email: email },
@@ -118,15 +149,15 @@ const ChatScreen = ({ navigation, user, friend }) => {
       const userData = await dynamoDB.get(userExistsParams).promise();
 
       if (!userData.Item) {
-        // Hiển thị thông báo nếu số điện thoại không tồn tại
-        alert("Số điện thoại không tồn tại");
+        // Hiển thị thông báo nếu email không tồn tại
+        alert("Email không tồn tại");
         return;
       }
 
-      // Kiểm tra xem số điện thoại đã kết bạn với bạn chưa
+      // Kiểm tra xem email đã kết bạn với bạn chưa
       const isFriendParams = {
         TableName: "Friends",
-        Key: { senderPhoneNumber: user?.email },
+        Key: { senderEmail: user?.email },
       };
       const friendData = await dynamoDB.get(isFriendParams).promise();
 
@@ -141,9 +172,9 @@ const ChatScreen = ({ navigation, user, friend }) => {
         }
       }
 
-      // Kiểm tra nếu số điện thoại là của chính bạn
+      // Kiểm tra nếu email là của chính bạn
       if (email === user?.email) {
-        alert("Đây là số điện thoại của bạn, không thể kết bạn!");
+        alert("Đây là email của bạn, không thể kết bạn!");
         return;
       }
 
@@ -201,7 +232,9 @@ const ChatScreen = ({ navigation, user, friend }) => {
             marginTop: 10,
           }}
         >
-          <IconAnt name="search1" size={30} color={"#fff"} />
+        <Pressable onPress={searchUser}>
+        <IconAnt name="search1" size={30} color={"#fff"} />
+        </Pressable>
           <TextInput
             placeholder="Tìm kiếm"
             placeholderTextColor={"#fff"}
@@ -214,6 +247,8 @@ const ChatScreen = ({ navigation, user, friend }) => {
               paddingLeft: 10,
               borderWidth: 1,
             }}
+            onChangeText={(text) => setEmail(text)}
+            onBlur={searchUser} // Gọi hàm searchUser khi người dùng kết thúc nhập liệu
           />
           <Pressable
             onPress={() => {
@@ -241,7 +276,7 @@ const ChatScreen = ({ navigation, user, friend }) => {
             <View style={styles.modalView}>
               <TextInput
                 style={styles.input}
-                placeholder="Nhập Email"
+                placeholder="Nhập email"
                 onChangeText={(text) => setEmail(text)}
                 value={email}
               />
@@ -291,6 +326,10 @@ const ChatScreen = ({ navigation, user, friend }) => {
             colors={["#4AD8C7", "#B728A9"]}
             style={styles.background}
           />
+           {/* Hiển thị kết quả tìm kiếm */}
+           {searchResult.map((user, index) => (
+              <SearchResultItem key={index} user={user} />
+            ))}
           {/* Render BoxChatt */}
           {renderBoxChats()}
         </View>
@@ -306,6 +345,28 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
+  },
+  searchResultItem: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    margin: 10,
+    padding: 15,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  searchResultName: {
+    fontWeight: "bold",
+    fontSize: 16,
+    marginBottom: 5,
+  },
+  searchResultEmail: {
+    color: "#888",
   },
   background: {
     position: "absolute",
