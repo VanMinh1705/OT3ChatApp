@@ -67,7 +67,9 @@ const ChatScreen = ({ navigation, user, friend }) => {
   };
   const handleChatWithSearchedUser = (user) => {
     // Kiểm tra xem người dùng tìm kiếm có phải là bạn bè không
-    const isFriend = boxChats.some((boxChat) => boxChat.receiverInfo.email === user.email);
+    const isFriend = boxChats.some(
+      (boxChat) => boxChat.receiverInfo.email === user.email
+    );
     setIsFriend(isFriend);
     navigation.navigate("BoxChat", { friend: user, user: user });
   };
@@ -81,7 +83,7 @@ const ChatScreen = ({ navigation, user, friend }) => {
         setSearchResult([]); // Không hiển thị kết quả tìm kiếm
         return;
       }
-  
+
       const params = {
         TableName: DYNAMODB_TABLE_NAME,
         FilterExpression: "email = :email",
@@ -91,10 +93,12 @@ const ChatScreen = ({ navigation, user, friend }) => {
       };
       const response = await dynamoDB.scan(params).promise();
       if (response.Items) {
-        const users = await Promise.all(response.Items.map(async (item) => {
-          const isFriend = await checkFriendshipStatus(item.email);
-          return { ...item, isFriend };
-        }));
+        const users = await Promise.all(
+          response.Items.map(async (item) => {
+            const isFriend = await checkFriendshipStatus(item.email);
+            return { ...item, isFriend };
+          })
+        );
         setSearchResult(users);
       } else {
         setSearchResult([]);
@@ -104,18 +108,14 @@ const ChatScreen = ({ navigation, user, friend }) => {
       setSearchResult([]);
     }
   };
-  
+
   const SearchResultItem = ({ user }) => {
     return (
       <View style={styles.searchResultItem}>
-        <Image
-          source={{ uri: user.avatarUser }}
-          style={styles.avatar}
-        />
+        <Image source={{ uri: user.avatarUser }} style={styles.avatar} />
         <View style={styles.userInfo}>
           <Text style={styles.searchResultName}>{user.hoTen}</Text>
           <Text style={styles.searchResultEmail}>{user.email}</Text>
-          {/* Hiển thị các thông tin khác của người dùng nếu cần */}
         </View>
       </View>
     );
@@ -243,20 +243,22 @@ const ChatScreen = ({ navigation, user, friend }) => {
         );
         if (isFriend) return true;
       }
-  
+
       // Kiểm tra trong bảng FriendRequests
       const friendRequestsParams = {
         TableName: "FriendRequests",
         Key: { email: searchedEmail },
       };
-      const friendRequestsData = await dynamoDB.get(friendRequestsParams).promise();
+      const friendRequestsData = await dynamoDB
+        .get(friendRequestsParams)
+        .promise();
       if (friendRequestsData.Item && friendRequestsData.Item.friendRequests) {
         const hasFriendRequest = friendRequestsData.Item.friendRequests.some(
           (request) => request.email === user.email
         );
         if (hasFriendRequest) return false; // Nếu có lời mời kết bạn, không được coi là bạn bè
       }
-  
+
       return false; // Nếu không có mối quan hệ hoặc lời mời, không phải là bạn bè
     } catch (error) {
       console.error("Error checking friendship status:", error);
@@ -272,7 +274,7 @@ const ChatScreen = ({ navigation, user, friend }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={"#1197bd"} />
 
       <SafeAreaView>
@@ -287,9 +289,9 @@ const ChatScreen = ({ navigation, user, friend }) => {
             marginTop: 10,
           }}
         >
-        <Pressable onPress={searchUser}>
-        <IconAnt name="search1" size={30} color={"#fff"} />
-        </Pressable>
+          <Pressable onPress={searchUser}>
+            <IconAnt name="search1" size={30} color={"#fff"} />
+          </Pressable>
           <TextInput
             placeholder="Tìm kiếm"
             placeholderTextColor={"#fff"}
@@ -381,40 +383,63 @@ const ChatScreen = ({ navigation, user, friend }) => {
             colors={["#4AD8C7", "#B728A9"]}
             style={styles.background}
           />
-         {/* Hiển thị kết quả tìm kiếm */}
-         {searchResult.map((user, index) => (
-  <View key={index}>
-    <Pressable
-      style={styles.searchResultItem}
-      onPress={() => handleChatWithSearchedUser(user)}
-    >
-      <Image
-        source={{ uri: user.avatarUser }}
-        style={styles.avatar}
-      />
-      <View style={styles.userInfo}>
-        <Text style={styles.searchResultName}>{user.hoTen}</Text>
-        <Text style={styles.searchResultEmail}>{user.email}</Text>
-        {/* Hiển thị các thông tin khác của người dùng nếu cần */}
-      </View>
-      {!user.isFriend && (
-        <Pressable
-          style={styles.addButton}
-          onPress={() => sendFriendRequest(user.email)}
-        >
-          <Text style={styles.addButtonText}>Kết bạn</Text>
-        </Pressable>
-      )}
-    </Pressable>
-  </View>
-))}
-
           {/* Render BoxChatt */}
           {renderBoxChats()}
         </View>
+
+        {/* Hiển thị kết quả tìm kiếm */}
+        {searchResult.length > 0 && (
+          <View
+            style={[
+              styles.searchResultsContainer,
+              {
+                backgroundColor: "#fff",
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 1,
+              },
+            ]}
+          >
+            {searchResult.map((user, index) => (
+              <Pressable
+                key={index}
+                style={styles.searchResultItem}
+                onPress={() => {
+                  if (user.isFriend) {
+                    handleChatWithFriend(user);
+                  } else {
+                    handleChatWithSearchedUser(user);
+                  }
+                }}
+              >
+                <Image
+                  source={{ uri: user.avatarUser }}
+                  style={styles.avatar}
+                />
+                <View style={styles.userInfo}>
+                  <Text style={styles.searchResultName}>{user.hoTen}</Text>
+                  <Text style={styles.searchResultEmail}>{user.email}</Text>
+                  {/* Hiển thị các thông tin khác của người dùng nếu cần */}
+                </View>
+                {!user.isFriend && (
+                  <Pressable
+                    style={styles.addButton}
+                    onPress={() => sendFriendRequest(user.email)}
+                  >
+                    <Text style={styles.addButtonText}>Kết bạn</Text>
+                  </Pressable>
+                )}
+              </Pressable>
+            ))}
+          </View>
+        )}
+
         <View style={styles.scrollViewContent} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -426,18 +451,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   addButton: {
-  backgroundColor: "#03c6fc",
-  borderRadius: 5,
-  paddingVertical: 8,
-  paddingHorizontal: 16,
-  alignSelf: "center",
-},
-addButtonText: {
-  color: "#fff",
-  fontWeight: "bold",
-},
+    backgroundColor: "#03c6fc",
+    borderRadius: 5,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignSelf: "center",
+  },
+  addButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
   searchResultItem: {
-    flexDirection:'row',
+    flexDirection: "row",
     backgroundColor: "#fff",
     borderRadius: 10,
     margin: 10,
@@ -565,5 +590,4 @@ addButtonText: {
     fontSize: 14,
     color: "#888",
   },
-
 });
