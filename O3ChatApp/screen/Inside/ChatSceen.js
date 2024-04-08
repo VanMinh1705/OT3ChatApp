@@ -35,7 +35,8 @@ const ChatScreen = ({ navigation, user, friend }) => {
   const [boxChats, setBoxChats] = useState([]);
   const [searchResult, setSearchResult] = useState([]);
   const [searchedUser, setSearchedUser] = useState(null);
-
+  const [selectedBoxChat, setSelectedBoxChat] = useState(null);
+  const [isFriend, setIsFriend] = useState(false);
   useEffect(() => {
     fetchBoxChats();
   }, []);
@@ -64,12 +65,23 @@ const ChatScreen = ({ navigation, user, friend }) => {
       console.error("Error fetching box chats:", error);
     }
   };
-
+  const handleChatWithSearchedUser = (user) => {
+    // Kiểm tra xem người dùng tìm kiếm có phải là bạn bè không
+    const isFriend = boxChats.some((boxChat) => boxChat.receiverInfo.email === user.email);
+    setIsFriend(isFriend);
+    navigation.navigate("BoxChat", { friend: user, user: user });
+  };
   const handleChatWithFriend = (friend) => {
     navigation.navigate("BoxChat", { friend, user });
   };
   const searchUser = async () => {
     try {
+      // Kiểm tra nếu email tìm kiếm trùng khớp với email của người dùng hiện tại
+      if (email === user.email) {
+        setSearchResult([]); // Không hiển thị kết quả tìm kiếm
+        return;
+      }
+  
       const params = {
         TableName: DYNAMODB_TABLE_NAME,
         FilterExpression: "email = :email",
@@ -79,7 +91,11 @@ const ChatScreen = ({ navigation, user, friend }) => {
       };
       const response = await dynamoDB.scan(params).promise();
       if (response.Items) {
-        setSearchResult(response.Items);
+        const users = await Promise.all(response.Items.map(async (item) => {
+          const isFriend = await checkFriendshipStatus(item.email);
+          return { ...item, isFriend };
+        }));
+        setSearchResult(users);
       } else {
         setSearchResult([]);
       }
@@ -88,17 +104,23 @@ const ChatScreen = ({ navigation, user, friend }) => {
       setSearchResult([]);
     }
   };
+  
   const SearchResultItem = ({ user }) => {
     return (
       <View style={styles.searchResultItem}>
-        <Text style={styles.searchResultName}>{user.hoTen}</Text>
-        <Text style={styles.searchResultEmail}>{user.email}</Text>
-        {/* Hiển thị các thông tin khác của người dùng nếu cần */}
+        <Image
+          source={{ uri: user.avatarUser }}
+          style={styles.avatar}
+        />
+        <View style={styles.userInfo}>
+          <Text style={styles.searchResultName}>{user.hoTen}</Text>
+          <Text style={styles.searchResultEmail}>{user.email}</Text>
+          {/* Hiển thị các thông tin khác của người dùng nếu cần */}
+        </View>
       </View>
     );
   };
-  
-  // Render danh sách các box chat
+
   // Render danh sách các box chat
   const renderBoxChats = () => {
     return boxChats.map((boxChat, index) => (
@@ -207,7 +229,40 @@ const ChatScreen = ({ navigation, user, friend }) => {
       alert("Đã xảy ra lỗi khi gửi lời mời kết bạn");
     }
   };
-
+  const checkFriendshipStatus = async (searchedEmail) => {
+    try {
+      // Kiểm tra trong bảng Friends
+      const friendsParams = {
+        TableName: "Friends",
+        Key: { senderEmail: user.email },
+      };
+      const friendsData = await dynamoDB.get(friendsParams).promise();
+      if (friendsData.Item && friendsData.Item.friends) {
+        const isFriend = friendsData.Item.friends.some(
+          (friend) => friend.email === searchedEmail
+        );
+        if (isFriend) return true;
+      }
+  
+      // Kiểm tra trong bảng FriendRequests
+      const friendRequestsParams = {
+        TableName: "FriendRequests",
+        Key: { email: searchedEmail },
+      };
+      const friendRequestsData = await dynamoDB.get(friendRequestsParams).promise();
+      if (friendRequestsData.Item && friendRequestsData.Item.friendRequests) {
+        const hasFriendRequest = friendRequestsData.Item.friendRequests.some(
+          (request) => request.email === user.email
+        );
+        if (hasFriendRequest) return false; // Nếu có lời mời kết bạn, không được coi là bạn bè
+      }
+  
+      return false; // Nếu không có mối quan hệ hoặc lời mời, không phải là bạn bè
+    } catch (error) {
+      console.error("Error checking friendship status:", error);
+      return false;
+    }
+  };
   const [fontsLoaded] = useFonts({
     "keaniaone-regular": require("../../assets/fonts/KeaniaOne-Regular.ttf"),
   });
@@ -326,10 +381,34 @@ const ChatScreen = ({ navigation, user, friend }) => {
             colors={["#4AD8C7", "#B728A9"]}
             style={styles.background}
           />
-           {/* Hiển thị kết quả tìm kiếm */}
-           {searchResult.map((user, index) => (
-              <SearchResultItem key={index} user={user} />
-            ))}
+         {/* Hiển thị kết quả tìm kiếm */}
+         {searchResult.map((user, index) => (
+  <View key={index}>
+    <Pressable
+      style={styles.searchResultItem}
+      onPress={() => handleChatWithSearchedUser(user)}
+    >
+      <Image
+        source={{ uri: user.avatarUser }}
+        style={styles.avatar}
+      />
+      <View style={styles.userInfo}>
+        <Text style={styles.searchResultName}>{user.hoTen}</Text>
+        <Text style={styles.searchResultEmail}>{user.email}</Text>
+        {/* Hiển thị các thông tin khác của người dùng nếu cần */}
+      </View>
+      {!user.isFriend && (
+        <Pressable
+          style={styles.addButton}
+          onPress={() => sendFriendRequest(user.email)}
+        >
+          <Text style={styles.addButtonText}>Kết bạn</Text>
+        </Pressable>
+      )}
+    </Pressable>
+  </View>
+))}
+
           {/* Render BoxChatt */}
           {renderBoxChats()}
         </View>
@@ -346,11 +425,23 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
   },
+  addButton: {
+  backgroundColor: "#03c6fc",
+  borderRadius: 5,
+  paddingVertical: 8,
+  paddingHorizontal: 16,
+  alignSelf: "center",
+},
+addButtonText: {
+  color: "#fff",
+  fontWeight: "bold",
+},
   searchResultItem: {
+    flexDirection:'row',
     backgroundColor: "#fff",
     borderRadius: 10,
     margin: 10,
-    padding: 15,
+    padding: 10,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -363,7 +454,7 @@ const styles = StyleSheet.create({
   searchResultName: {
     fontWeight: "bold",
     fontSize: 16,
-    marginBottom: 5,
+    marginBottom: 2,
   },
   searchResultEmail: {
     color: "#888",
@@ -474,4 +565,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#888",
   },
+
 });
