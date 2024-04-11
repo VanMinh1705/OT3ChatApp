@@ -7,11 +7,20 @@ import {
   Pressable,
   ScrollView,
   TextInput,
-  Platform,
+  Modal,
+  Image,
   Keyboard,
 } from "react-native";
-import { DynamoDB } from "aws-sdk";
-import { ACCESS_KEY_ID, SECRET_ACCESS_KEY, REGION } from "@env";
+import { DynamoDB, S3 } from "aws-sdk";
+import {
+  ACCESS_KEY_ID,
+  SECRET_ACCESS_KEY,
+  REGION,
+  S3_BUCKET_NAME,
+  DYNAMODB_TABLE_NAME,
+} from "@env";
+import Icon from "react-native-vector-icons/AntDesign";
+import * as ImagePicker from "expo-image-picker";
 
 const BoxChat = ({ navigation, route }) => {
   const { friend, user } = route.params;
@@ -19,6 +28,197 @@ const BoxChat = ({ navigation, route }) => {
   const [newMessage, setNewMessage] = useState("");
   const scrollViewRef = useRef(null);
   const textInputRef = useRef(null);
+  const [selectedMessage, setSelectedMessage] = useState(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [modalPosition, setModalPosition] = useState({ top: 0, left: 0 });
+  const [selectedMessageIndex, setSelectedMessageIndex] = useState(null);
+
+  const [avatarImg, setAvatarImg] = useState(null);
+  const [fileType, setFileType] = useState(""); // Thêm state mới để lưu trữ fileType
+
+  const s3 = new S3({
+    accessKeyId: ACCESS_KEY_ID,
+    secretAccessKey: SECRET_ACCESS_KEY,
+    region: REGION,
+  });
+  const bucketName = S3_BUCKET_NAME;
+
+  const pickImage = async () => {
+    // No permissions request is necessary for launching the image library
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      aspect: [1, 1],
+      quality: 1,
+    });
+
+    console.log(result);
+
+    if (!result.canceled) {
+      setAvatarImg(result.assets[0].uri);
+
+      // Xác định fileType từ tên file
+      const image = result.assets[0].uri.split(".");
+      const fileType = image[image.length - 1];
+      setFileType(fileType); // Lưu fileType vào state hoặc truyền vào hàm signUp
+    }
+  };
+
+  const openModal = (message, index) => {
+    setSelectedMessageIndex(index);
+    setSelectedMessage(message);
+    setIsModalVisible(true);
+  };
+
+  const closeModal = () => {
+    setIsModalVisible(false);
+    setSelectedMessage(null);
+    setSelectedMessageIndex(null);
+  };
+
+  const deleteMessage = async () => {
+    try {
+      // Tìm kiếm tin nhắn cần xóa trong danh sách messages
+      const updatedMessages = messages.map((msg, index) => {
+        if (index === selectedMessageIndex) {
+          // Nếu là tin nhắn cần xóa, thay đổi nội dung thành "Tin nhắn đã được xóa"
+          return {
+            ...msg,
+            content: "Tin nhắn đã được xóa",
+            image: null,
+          };
+        }
+        return msg; // Trả về tin nhắn không cần xóa
+      });
+
+      // Cập nhật danh sách tin nhắn trong DynamoDB
+      const params = {
+        TableName: "BoxChats",
+        Key: {
+          senderEmail: `${user.email}_${friend.email}`,
+        },
+        UpdateExpression: "SET messages = :messages",
+        ExpressionAttributeValues: {
+          ":messages": updatedMessages,
+        },
+        ReturnValues: "UPDATED_NEW",
+      };
+      await dynamoDB.update(params).promise();
+
+      // Cập nhật state và đóng modal
+      setMessages(updatedMessages);
+      closeModal();
+    } catch (error) {
+      console.error("Error deleting message:", error);
+    }
+  };
+
+  const retractMessage = async () => {
+    try {
+      // Thay đổi nội dung của tin nhắn thành "Tin nhắn đã được thu hồi"
+      const timestamp = new Date().toISOString();
+      const retractedMessageContent = "Tin nhắn đã được thu hồi";
+
+      // Xóa hình ảnh nếu có
+      const updatedMessages = messages.map((msg, index) => {
+        if (index === selectedMessageIndex) {
+          return {
+            ...msg,
+            content: retractedMessageContent,
+            image: null,
+          };
+        }
+        return msg;
+      });
+
+      // Cập nhật tin nhắn ở cả hai bên
+      const updateSenderParams = {
+        TableName: "BoxChats",
+        Key: {
+          senderEmail: `${user.email}_${friend.email}`,
+        },
+        UpdateExpression:
+          "SET messages[" +
+          selectedMessageIndex +
+          "].content = :content, messages[" +
+          selectedMessageIndex +
+          "].image = :image",
+        ExpressionAttributeValues: {
+          ":content": retractedMessageContent,
+          ":image": null,
+        },
+        ReturnValues: "UPDATED_NEW",
+      };
+      await dynamoDB.update(updateSenderParams).promise();
+
+      const updateReceiverParams = {
+        TableName: "BoxChats",
+        Key: {
+          senderEmail: `${friend.email}_${user.email}`,
+        },
+        UpdateExpression:
+          "SET messages[" +
+          selectedMessageIndex +
+          "].content = :content, messages[" +
+          selectedMessageIndex +
+          "].image = :image",
+        ExpressionAttributeValues: {
+          ":content": retractedMessageContent,
+          ":image": null,
+        },
+        ReturnValues: "UPDATED_NEW",
+      };
+      await dynamoDB.update(updateReceiverParams).promise();
+
+      // Cập nhật state và đóng modal
+      setMessages(updatedMessages);
+      closeModal();
+    } catch (error) {
+      console.error("Error retracting message:", error);
+    }
+  };
+
+  // Giao diện modal xử lý tin nhắn
+  const renderModal = () => {
+    return (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isModalVisible}
+        onRequestClose={closeModal}
+      >
+        <Pressable style={styles.modalOverlay} onPress={closeModal} />
+        <View style={[styles.modalContainer, modalPosition]}>
+          <View style={styles.modalContent}>
+            {selectedMessage && (
+              <>
+                {selectedMessage.isSender ? (
+                  <>
+                    <Pressable style={styles.modalItem} onPress={deleteMessage}>
+                      <Icon name="delete" size={25} />
+                      <Text style={styles.modalItemText}>Xóa</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.modalItem}
+                      onPress={retractMessage}
+                    >
+                      <Icon name="reload1" size={25} />
+                      <Text style={styles.modalItemText}>Thu hồi</Text>
+                    </Pressable>
+                  </>
+                ) : (
+                  <Pressable style={styles.modalItem} onPress={deleteMessage}>
+                    <Icon name="delete" size={25} />
+                    <Text style={styles.modalItemText}>Xóa</Text>
+                  </Pressable>
+                )}
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   const dynamoDB = new DynamoDB.DocumentClient({
     region: REGION,
     accessKeyId: ACCESS_KEY_ID,
@@ -56,8 +256,9 @@ const BoxChat = ({ navigation, route }) => {
         ? senderResponse.Item.messages
         : [];
 
+      // Không cần thay đổi đường dẫn hình ảnh ở đây, sử dụng trực tiếp đường dẫn từ tin nhắn
       setMessages(senderMessages);
-      scrollToBottom(); // Cuộn đến cuối khi tải tin nhắn ban đầu
+      scrollToBottom();
     } catch (error) {
       console.error("Error fetching messages:", error);
     }
@@ -70,58 +271,148 @@ const BoxChat = ({ navigation, route }) => {
   };
 
   const sendMessage = async () => {
-    if (newMessage.trim() === "") {
-      return;
-    }
-
-    const timestamp = new Date().toISOString();
-
-    const senderMessage = {
-      content: newMessage,
-      senderEmail: `${user.email}_${friend.email}`,
-      receiverEmail: friend.email,
-      timestamp: timestamp,
-      isSender: true,
-    };
-
-    const receiverMessage = {
-      content: newMessage,
-      senderEmail: `${friend.email}_${user.email}`,
-      receiverEmail: user.email,
-      timestamp: timestamp,
-      isSender: false,
-    };
-
     try {
-      const senderParams = {
-        TableName: "BoxChats",
-        Key: {
+      // Nếu không có tin nhắn văn bản hoặc hình ảnh, không thực hiện gửi
+      if (newMessage.trim() === "" && avatarImg === null) {
+        return;
+      }
+
+      const timestamp = new Date().toISOString();
+
+      // Tin nhắn văn bản
+      if (newMessage.trim() !== "") {
+        const senderMessage = {
+          content: newMessage,
           senderEmail: `${user.email}_${friend.email}`,
-        },
-        UpdateExpression: "SET messages = list_append(messages, :newMessage)",
-        ExpressionAttributeValues: {
-          ":newMessage": [senderMessage],
-        },
-        ReturnValues: "UPDATED_NEW",
-      };
-      await dynamoDB.update(senderParams).promise();
+          receiverEmail: friend.email,
+          timestamp: timestamp,
+          isSender: true,
+        };
 
-      const receiverParams = {
-        TableName: "BoxChats",
-        Key: {
+        const receiverMessage = {
+          content: newMessage,
           senderEmail: `${friend.email}_${user.email}`,
-        },
-        UpdateExpression: "SET messages = list_append(messages, :newMessage)",
-        ExpressionAttributeValues: {
-          ":newMessage": [receiverMessage],
-        },
-        ReturnValues: "UPDATED_NEW",
-      };
-      await dynamoDB.update(receiverParams).promise();
+          receiverEmail: user.email,
+          timestamp: timestamp,
+          isSender: false,
+        };
 
-      setMessages([...messages, senderMessage]);
-      setNewMessage("");
-      scrollToBottom(); // Cuộn đến cuối sau khi gửi tin nhắn
+        // Cập nhật tin nhắn cho người gửi
+        const senderParams = {
+          TableName: "BoxChats",
+          Key: {
+            senderEmail: `${user.email}_${friend.email}`,
+          },
+          UpdateExpression: "SET messages = list_append(messages, :newMessage)",
+          ExpressionAttributeValues: {
+            ":newMessage": [senderMessage],
+          },
+          ReturnValues: "UPDATED_NEW",
+        };
+        await dynamoDB.update(senderParams).promise();
+
+        // Cập nhật tin nhắn cho người nhận
+        const receiverParams = {
+          TableName: "BoxChats",
+          Key: {
+            senderEmail: `${friend.email}_${user.email}`,
+          },
+          UpdateExpression: "SET messages = list_append(messages, :newMessage)",
+          ExpressionAttributeValues: {
+            ":newMessage": [receiverMessage],
+          },
+          ReturnValues: "UPDATED_NEW",
+        };
+        await dynamoDB.update(receiverParams).promise();
+
+        // Cập nhật state tin nhắn và làm mới input
+        setMessages([...messages, senderMessage]);
+        setNewMessage(""); // Reset giá trị của newMessage sau khi gửi tin nhắn
+        scrollToBottom();
+      }
+
+      // Tin nhắn hình ảnh
+      if (avatarImg !== null) {
+        let contentType = "";
+        switch (fileType) {
+          case "jpg":
+          case "jpeg":
+            contentType = "image/jpeg";
+            break;
+          case "png":
+            contentType = "image/png";
+            break;
+          case "gif":
+            contentType = "image/gif";
+            break;
+          default:
+            contentType = "application/octet-stream"; // Loại mặc định
+        }
+        const filePath = `${user.email}_${Date.now().toString()}.${fileType}`;
+
+        const response = await fetch(avatarImg);
+        const blob = await response.blob();
+        // Upload hình ảnh lên S3
+        const paramsS3 = {
+          Bucket: bucketName,
+          Key: filePath,
+          Body: blob,
+          ContentType: contentType,
+        };
+        const data = await s3.upload(paramsS3).promise();
+        const imageURL = data.Location;
+
+        // Thêm tin nhắn hình ảnh vào danh sách tin nhắn của người gửi và người nhận
+        const senderMessage = {
+          content: imageURL,
+          senderEmail: `${user.email}_${friend.email}`,
+          receiverEmail: friend.email,
+          timestamp: timestamp,
+          isSender: true,
+          image: imageURL,
+        };
+
+        const receiverMessage = {
+          content: imageURL,
+          senderEmail: `${friend.email}_${user.email}`,
+          receiverEmail: user.email,
+          timestamp: timestamp,
+          isSender: false,
+          image: imageURL,
+        };
+
+        // Cập nhật tin nhắn cho người gửi
+        const senderParams = {
+          TableName: "BoxChats",
+          Key: {
+            senderEmail: `${user.email}_${friend.email}`,
+          },
+          UpdateExpression: "SET messages = list_append(messages, :newMessage)",
+          ExpressionAttributeValues: {
+            ":newMessage": [senderMessage],
+          },
+          ReturnValues: "UPDATED_NEW",
+        };
+        await dynamoDB.update(senderParams).promise();
+
+        // Cập nhật tin nhắn cho người nhận
+        const receiverParams = {
+          TableName: "BoxChats",
+          Key: {
+            senderEmail: `${friend.email}_${user.email}`,
+          },
+          UpdateExpression: "SET messages = list_append(messages, :newMessage)",
+          ExpressionAttributeValues: {
+            ":newMessage": [receiverMessage],
+          },
+          ReturnValues: "UPDATED_NEW",
+        };
+        await dynamoDB.update(receiverParams).promise();
+
+        // Cập nhật state tin nhắn và làm mới input
+        setMessages([...messages, senderMessage]);
+        scrollToBottom();
+      }
     } catch (error) {
       console.error("Error sending message:", error);
     }
@@ -134,6 +425,10 @@ const BoxChat = ({ navigation, route }) => {
     const formattedHours = hours < 10 ? `0${hours}` : `${hours}`;
     const formattedMinutes = minutes < 10 ? `0${minutes}` : `${minutes}`;
     return `${formattedHours}:${formattedMinutes}`;
+  };
+
+  const handleLongPress = (message, index) => {
+    openModal(message, index);
   };
 
   useEffect(() => {
@@ -149,6 +444,21 @@ const BoxChat = ({ navigation, route }) => {
     };
   }, []);
 
+  useEffect(() => {
+    if (selectedMessage) {
+      calculateModalPosition();
+    }
+  }, [selectedMessage]);
+
+  const calculateModalPosition = () => {
+    const index = messages.findIndex((msg) => msg === selectedMessage);
+    const messageHeight = 80; // Thay đổi giá trị này theo chiều cao thực của tin nhắn
+    const modalTop = index * messageHeight;
+    const isSender = selectedMessage.isSender;
+    const modalLeft = isSender ? "20%" : "25%"; // Hiển thị modal bên trái nếu là tin nhắn người gửi, ngược lại hiển thị bên phải
+    setModalPosition({ top: modalTop, left: modalLeft });
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -159,25 +469,48 @@ const BoxChat = ({ navigation, route }) => {
         ref={scrollViewRef}
       >
         {messages.map((message, index) => (
-          <View
+          <Pressable
             key={index}
+            onLongPress={() => handleLongPress(message, index)}
             style={[
               styles.messageContainer,
               {
                 alignSelf: message.isSender ? "flex-end" : "flex-start",
                 backgroundColor: message.isSender ? "#94e5f2" : "#dddddd",
+                opacity:
+                  selectedMessage && selectedMessageIndex !== index ? 0.5 : 1,
               },
             ]}
           >
-            <Text style={styles.messageText}>{message.content}</Text>
+            {/* Kiểm tra nếu tin nhắn chứa hình ảnh */}
+            {message.image ? (
+              <Image
+                resizeMode="contain"
+                source={{ uri: message.image }} // Sử dụng đường dẫn hình ảnh từ tin nhắn
+                style={{ width: 200, height: 200, borderRadius: 10 }}
+              />
+            ) : (
+              // Nếu không có hình ảnh, hiển thị nội dung văn bản bình thường
+              <Text style={styles.messageText}>{message.content}</Text>
+            )}
             <Text style={styles.messageTimestamp}>
               {formatMessageTimestamp(message.timestamp)}
             </Text>
-          </View>
+          </Pressable>
         ))}
       </ScrollView>
 
       <View style={styles.inputContainer}>
+        <Pressable>
+          <Icon
+            name="paperclip"
+            size={25}
+            style={{ marginLeft: 5, borderRightWidth: 1, paddingRight: 5 }}
+          />
+        </Pressable>
+        <Pressable onPress={pickImage}>
+          <Icon name="picture" size={25} style={{ marginLeft: 5 }} />
+        </Pressable>
         <TextInput
           style={styles.inputBox}
           value={newMessage}
@@ -189,6 +522,7 @@ const BoxChat = ({ navigation, route }) => {
           <Text style={styles.sendButtonText}>Gửi</Text>
         </Pressable>
       </View>
+      {renderModal()}
     </View>
   );
 };
@@ -230,6 +564,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 10,
     paddingVertical: 5,
+    borderTopWidth: 1,
+    borderTopColor: "#ccc",
   },
   inputBox: {
     flex: 1,
@@ -240,6 +576,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 10,
     marginRight: 10,
+    marginLeft: 5,
   },
   sendButton: {
     width: 50,
@@ -256,5 +593,34 @@ const styles = StyleSheet.create({
   messageTimestamp: {
     fontSize: 12,
     color: "gray",
+  },
+  modalContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    borderWidth: 1,
+    width: 300,
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderRadius: 10,
+    elevation: 5,
+    padding: 20,
+    alignSelf: "stretch",
+    flexDirection: "row",
+  },
+  modalItem: {
+    flex: 1, // Sử dụng flex để tin nhắn tự mở rộng theo nội dung của nó
+    alignItems: "center",
+  },
+  modalItemText: {
+    fontSize: 16,
+    textAlign: "center",
+  },
+  modalOverlay: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
 });
