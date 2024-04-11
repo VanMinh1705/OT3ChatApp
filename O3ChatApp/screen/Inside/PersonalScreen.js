@@ -9,8 +9,9 @@ import {
   TextInput,
   Pressable,
   Alert,
+  Modal,
 } from "react-native";
-import React from "react";
+import React, { useState } from "react";
 import { Dimensions } from "react-native";
 import IconAnt from "react-native-vector-icons/AntDesign";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
@@ -26,7 +27,6 @@ import {
   DYNAMODB_TABLE_NAME,
 } from "@env";
 
-import { useState } from "react";
 export const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } =
   Dimensions.get("window");
 
@@ -36,8 +36,11 @@ const UserScreen = ({ navigation, user }) => {
   });
   const [avatarUri, setAvatarUri] = useState(user?.avatarUser);
   const [fileType, setFileType] = useState("");
+  const [modalVisible, setModalVisible] = useState(false);
+
   const bucketName = S3_BUCKET_NAME;
   const tableName = DYNAMODB_TABLE_NAME;
+
   const pickAvatar = async () => {
     // Hiển thị hộp thoại xác nhận trước khi chọn hình
     Alert.alert(
@@ -204,8 +207,8 @@ const UserScreen = ({ navigation, user }) => {
           </Pressable>
           <View style={{ marginLeft: 10 }}>
             <Text style={styles.txtUser}>{user?.hoTen}</Text>
-            <Pressable onPress={pickAvatar}>
-              <Text style={styles.txtViewUser}>Cập nhật ảnh đại diện</Text>
+            <Pressable onPress={() => setModalVisible(true)}>
+              <Text style={styles.txtViewUser}>Xem thông tin cá nhân</Text>
             </Pressable>
           </View>
         </View>
@@ -228,6 +231,54 @@ const UserScreen = ({ navigation, user }) => {
           />
           <Text style={styles.txtPrivacy}>Quyền riêng tư</Text>
         </Pressable>
+
+        {/* Modal hiển thị thông tin cá nhân */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={styles.modalContainer}>
+          <Image
+                style={styles.avatarBackground}
+                source={require("../../assets/img/avatar-background.jpg")}
+              />
+            <View style={styles.modalContent}>
+              <Pressable onPress={pickAvatar}>
+                <Image
+                  style={{
+                    width: 50,
+                    height: 50,
+                    borderRadius: 25,
+                    marginLeft: 10,
+                    marginTop: -30,
+                  }}
+                  source={
+                    avatarUri
+                      ? { uri: avatarUri }
+                      : require("../../assets/img/no-avatar.png")
+                  }
+                />
+              </Pressable>
+              <Text style={styles.modalTitle}>Thông Tin Cá Nhân</Text>
+                <Text style={styles.modalText}>Tên: {user?.hoTen}</Text>
+                <Text style={styles.modalText}>Email: {user?.email}</Text>
+                <Text style={styles.modalText}>Giới tính: </Text>
+                <Text style={styles.modalText}>Ngày sinh: </Text>
+                <Text style={styles.modalText}>Số điện thoại: </Text>
+              {/* Hiển thị các thông tin cá nhân khác nếu cần */}
+              <View style={{flexDirection: 'row'}}>
+              <Pressable>
+                <Text style={styles.updateButton}>Chỉnh sửa</Text>
+              </Pressable>
+              <Pressable onPress={() => setModalVisible(false)}>
+                <Text style={styles.closeButton}>Đóng</Text>
+              </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     </SafeAreaView>
   );
@@ -307,5 +358,48 @@ const styles = StyleSheet.create({
   txtViewUser: {
     color: "#696969",
     fontSize: 16,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    borderRadius: 10,
+    padding: 20,
+    alignItems: "flex-start",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  modalText: {
+    fontSize: 16,
+    marginBottom: 5,
+  },
+  closeButton: {
+    width:100,
+    backgroundColor:'gray',
+    marginLeft:80,
+    borderRadius:10,
+    marginTop: 50,
+    fontSize: 18,
+    textAlign:'center'
+  },
+  updateButton: {
+    backgroundColor:'gray',
+    borderRadius:10,
+    marginTop: 50,
+    fontSize: 18,
+    width:100,
+    textAlign:'center'
+  },
+  avatarBackground: {
+    position: 'absolute',
+    borderRadius: 10,
+    height: "50%", // Điều chỉnh kích thước ảnh nền của modal
+    width: "90%", // Duy trì tỷ lệ khung hình
   },
 });
