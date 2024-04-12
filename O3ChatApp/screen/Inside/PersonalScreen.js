@@ -240,10 +240,10 @@ const UserScreen = ({ navigation, user }) => {
           onRequestClose={() => setModalVisible(false)}
         >
           <View style={styles.modalContainer}>
-          <Image
-                style={styles.avatarBackground}
-                source={require("../../assets/img/avatar-background.jpg")}
-              />
+            <Image
+              style={styles.avatarBackground}
+              source={require("../../assets/img/avatar-background.jpg")}
+            />
             <View style={styles.modalContent}>
               <Pressable onPress={pickAvatar}>
                 <Image
@@ -262,19 +262,19 @@ const UserScreen = ({ navigation, user }) => {
                 />
               </Pressable>
               <Text style={styles.modalTitle}>Thông Tin Cá Nhân</Text>
-                <Text style={styles.modalText}>Tên: {user?.hoTen}</Text>
-                <Text style={styles.modalText}>Email: {user?.email}</Text>
-                <Text style={styles.modalText}>Giới tính: </Text>
-                <Text style={styles.modalText}>Ngày sinh: </Text>
-                <Text style={styles.modalText}>Số điện thoại: </Text>
+              <Text style={styles.modalText}>Tên: {user?.hoTen}</Text>
+              <Text style={styles.modalText}>Email: {user?.email}</Text>
+              <Text style={styles.modalText}>Giới tính: </Text>
+              <Text style={styles.modalText}>Ngày sinh: </Text>
+              <Text style={styles.modalText}>Số điện thoại: </Text>
               {/* Hiển thị các thông tin cá nhân khác nếu cần */}
-              <View style={{flexDirection: 'row'}}>
-              <Pressable>
-                <Text style={styles.updateButton}>Chỉnh sửa</Text>
-              </Pressable>
-              <Pressable onPress={() => setModalVisible(false)}>
-                <Text style={styles.closeButton}>Đóng</Text>
-              </Pressable>
+              <View style={{ flexDirection: "row" }}>
+                <Pressable>
+                  <Text style={styles.updateButton}>Chỉnh sửa</Text>
+                </Pressable>
+                <Pressable onPress={() => setModalVisible(false)}>
+                  <Text style={styles.closeButton}>Đóng</Text>
+                </Pressable>
               </View>
             </View>
           </View>
@@ -380,24 +380,24 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   closeButton: {
-    width:100,
-    backgroundColor:'gray',
-    marginLeft:80,
-    borderRadius:10,
+    width: 100,
+    backgroundColor: "gray",
+    marginLeft: 80,
+    borderRadius: 10,
     marginTop: 50,
     fontSize: 18,
-    textAlign:'center'
+    textAlign: "center",
   },
   updateButton: {
-    backgroundColor:'gray',
-    borderRadius:10,
+    backgroundColor: "gray",
+    borderRadius: 10,
     marginTop: 50,
     fontSize: 18,
-    width:100,
-    textAlign:'center'
+    width: 100,
+    textAlign: "center",
   },
   avatarBackground: {
-    position: 'absolute',
+    position: "absolute",
     borderRadius: 10,
     height: "50%", // Điều chỉnh kích thước ảnh nền của modal
     width: "90%", // Duy trì tỷ lệ khung hình

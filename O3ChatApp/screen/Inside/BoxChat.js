@@ -37,7 +37,7 @@ const BoxChat = ({ navigation, route }) => {
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [modalPosition, setModalPosition] = useState({ top: 0, left: 0 });
-
+  const [selectedMessageIndex, setSelectedMessageIndex] = useState(null);
   const [avatarImg, setAvatarImg] = useState(null);
   const [fileType, setFileType] = useState(""); // Thêm state mới để lưu trữ fileType
 
