@@ -10,6 +10,7 @@ import {
   Modal,
   Image,
   Keyboard,
+  Animated,
 } from "react-native";
 import { DynamoDB, S3 } from "aws-sdk";
 import {
@@ -21,6 +22,11 @@ import {
 } from "@env";
 import Icon from "react-native-vector-icons/AntDesign";
 import * as ImagePicker from "expo-image-picker";
+import Lightbox from "react-native-lightbox-v2";
+import {
+  PanGestureHandler,
+  PinchGestureHandler,
+} from "react-native-gesture-handler";
 
 const BoxChat = ({ navigation, route }) => {
   const { friend, user } = route.params;
@@ -31,7 +37,6 @@ const BoxChat = ({ navigation, route }) => {
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [modalPosition, setModalPosition] = useState({ top: 0, left: 0 });
-  const [selectedMessageIndex, setSelectedMessageIndex] = useState(null);
 
   const [avatarImg, setAvatarImg] = useState(null);
   const [fileType, setFileType] = useState(""); // Thêm state mới để lưu trữ fileType
@@ -61,6 +66,11 @@ const BoxChat = ({ navigation, route }) => {
       const fileType = image[image.length - 1];
       setFileType(fileType); // Lưu fileType vào state hoặc truyền vào hàm signUp
     }
+  };
+
+  const cancelImage = () => {
+    setAvatarImg(null);
+    setFileType(""); // Reset loại của hình ảnh khi hủy gửi
   };
 
   const openModal = (message, index) => {
@@ -411,6 +421,7 @@ const BoxChat = ({ navigation, route }) => {
 
         // Cập nhật state tin nhắn và làm mới input
         setMessages([...messages, senderMessage]);
+        cancelImage();
         scrollToBottom();
       }
     } catch (error) {
@@ -482,15 +493,19 @@ const BoxChat = ({ navigation, route }) => {
               },
             ]}
           >
-            {/* Kiểm tra nếu tin nhắn chứa hình ảnh */}
             {message.image ? (
-              <Image
-                resizeMode="contain"
-                source={{ uri: message.image }} // Sử dụng đường dẫn hình ảnh từ tin nhắn
-                style={{ width: 200, height: 200, borderRadius: 10 }}
-              />
+              <Lightbox underlayColor="transparent">
+                <Image
+                  resizeMode="contain"
+                  source={{ uri: message.image }}
+                  style={{
+                    width: "100%", // Điều chỉnh kích thước theo ý muốn của bạn
+                    aspectRatio: 1, // Duy trì tỷ lệ khung hình
+                    borderRadius: 10,
+                  }}
+                />
+              </Lightbox>
             ) : (
-              // Nếu không có hình ảnh, hiển thị nội dung văn bản bình thường
               <Text style={styles.messageText}>{message.content}</Text>
             )}
             <Text style={styles.messageTimestamp}>
@@ -499,7 +514,14 @@ const BoxChat = ({ navigation, route }) => {
           </Pressable>
         ))}
       </ScrollView>
-
+      {avatarImg && (
+        <View style={styles.selectedImageContainer}>
+          <Image source={{ uri: avatarImg }} style={styles.selectedImage} />
+          <Pressable onPress={cancelImage} style={styles.cancelImageButton}>
+            <Icon name="close" size={20} color="white" />
+          </Pressable>
+        </View>
+      )}
       <View style={styles.inputContainer}>
         <Pressable>
           <Icon
@@ -622,5 +644,23 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+  },
+  selectedImageContainer: {
+    position: "relative", // Đảm bảo vị trí tương đối để các phần tử con có thể được định vị một cách đúng đắn
+    alignItems: "center",
+    marginVertical: 20,
+  },
+  selectedImage: {
+    width: 100, // Kích thước của hình ảnh đã chọn
+    height: 100,
+    borderRadius: 10,
+  },
+  cancelImageButton: {
+    position: "absolute", // Định vị nút hủy gửi tương đối với phần tử cha (selectedImageContainer)
+    top: 5, // Đặt vị trí của nút từ trên xuống 5px
+    right: 5, // Đặt vị trí của nút từ phải sang trái 5px
+    backgroundColor: "rgba(0, 0, 0, 0.5)", // Màu nền của nút hủy gửi
+    borderRadius: 20, // Bo tròn các góc của nút
+    padding: 5, // Tăng khoảng cách giữa biên nút và văn bản bên trong nút
   },
 });
