@@ -15,6 +15,7 @@
     "@react-navigation/native-stack": "^6.9.26",
     "aws-sdk": "^2.1594.0",
     "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
     "expo": "~50.0.14",
     "expo-status-bar": "~1.11.1",
     "express": "^4.19.2",
@@ -22,7 +23,8 @@
     "nodemailer": "^6.9.13",
     "otp-generator": "^4.0.1",
     "react": "18.2.0",
-    "react-native": "0.73.6"
+    "react-native": "0.73.6",
+    "socket.io": "^4.7.5"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"
