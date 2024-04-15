@@ -169,6 +169,46 @@ io.on("connection", (socket) => {
     }
   );
 
+  // Handle send file message event
+  socket.on("sendFileMessage", async ({ senderMessage, receiverMessage }) => {
+    console.log("Send File Message:", senderMessage, receiverMessage);
+
+    try {
+      // Lưu tin nhắn vào cơ sở dữ liệu DynamoDB
+      const senderParams = {
+        TableName: "BoxChats",
+        Key: {
+          senderEmail: senderMessage.senderEmail,
+        },
+        UpdateExpression: "SET messages = list_append(messages, :newMessage)",
+        ExpressionAttributeValues: {
+          ":newMessage": [senderMessage],
+        },
+        ReturnValues: "UPDATED_NEW",
+      };
+      await dynamoDB.update(senderParams).promise();
+
+      const receiverParams = {
+        TableName: "BoxChats",
+        Key: {
+          senderEmail: receiverMessage.senderEmail,
+        },
+        UpdateExpression: "SET messages = list_append(messages, :newMessage)",
+        ExpressionAttributeValues: {
+          ":newMessage": [receiverMessage],
+        },
+        ReturnValues: "UPDATED_NEW",
+      };
+      await dynamoDB.update(receiverParams).promise();
+
+      // Gửi lại tin nhắn đến tất cả các client
+      io.emit("receiveMessage", { senderMessage, receiverMessage });
+    } catch (error) {
+      console.error("Error saving file message:", error);
+      return;
+    }
+  });
+
   // Handle disconnect event
   socket.on("disconnect", () => {
     console.log("A client disconnected.");

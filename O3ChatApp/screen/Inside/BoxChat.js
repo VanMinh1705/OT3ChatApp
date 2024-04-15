@@ -11,6 +11,7 @@ import {
   Image,
   Keyboard,
   Animated,
+  Platform,
 } from "react-native";
 import { DynamoDB, S3 } from "aws-sdk";
 import {
@@ -24,8 +25,10 @@ import Icon from "react-native-vector-icons/AntDesign";
 import * as ImagePicker from "expo-image-picker";
 import Lightbox from "react-native-lightbox-v2";
 import io from "socket.io-client";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system";
 
-const socket = io("http://192.168.1.233:3000");
+const socket = io("http://192.168.1.33:3000");
 
 const BoxChat = ({ navigation, route }) => {
   const { friend, user } = route.params;
@@ -38,12 +41,153 @@ const BoxChat = ({ navigation, route }) => {
   const [selectedMessageIndex, setSelectedMessageIndex] = useState(null);
   const [avatarImg, setAvatarImg] = useState(null);
   const [fileType, setFileType] = useState(""); // Thêm state mới để lưu trữ fileType
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [fileTypeDoc, setFileTypeDoc] = useState(""); // Thêm state mới để lưu trữ fileType
+
   const s3 = new S3({
     accessKeyId: ACCESS_KEY_ID,
     secretAccessKey: SECRET_ACCESS_KEY,
     region: REGION,
   });
   const bucketName = S3_BUCKET_NAME;
+
+  const pickFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync();
+      console.log(result);
+
+      if (!result.canceled) {
+        setSelectedFile(result.assets[0]);
+        const file = result.assets[0].uri.split(".");
+        const fileType = file[file.length - 1];
+        setFileTypeDoc(fileType); // Lưu thông tin về tệp đã chọn
+      }
+    } catch (error) {
+      console.log("Error picking file:", error);
+    }
+  };
+
+  const handleFileDownload = async (fileURL, fileName) => {
+    try {
+      // Xác định đường dẫn thư mục Download
+      let downloadDirectory = FileSystem.documentDirectory;
+      if (Platform.OS === "android") {
+        downloadDirectory += "Download/";
+      }
+
+      // Kiểm tra xem thư mục Download đã tồn tại chưa
+      const directoryInfo = await FileSystem.getInfoAsync(downloadDirectory);
+      if (!directoryInfo.exists) {
+        // Nếu thư mục không tồn tại, tạo mới nó
+        await FileSystem.makeDirectoryAsync(downloadDirectory, {
+          intermediates: true,
+        });
+      }
+
+      const downloadResumable = FileSystem.createDownloadResumable(
+        fileURL,
+        downloadDirectory + fileName // Lưu file vào thư mục Download với tên fileName
+      );
+
+      const { uri } = await downloadResumable.downloadAsync();
+
+      // Hiển thị thông báo cho người dùng
+      if (Platform.OS === "android") {
+        alert("File đã được tải xuống. Vui lòng mở thư mục Downloads để xem.");
+      } else {
+        alert(
+          "File đã được tải xuống. Bạn có thể mở nó từ trình quản lý tệp của thiết bị."
+        );
+      }
+      console.log("File downloaded to:", uri);
+    } catch (error) {
+      console.error("Download error:", error);
+    }
+  };
+
+  const cancelDoc = () => {
+    setSelectedFile(null);
+    setFileTypeDoc("");
+  };
+
+  // Hàm gửi file
+  const sendFile = async () => {
+    try {
+      if (selectedFile === null) return;
+
+      const timestamp = new Date().toISOString();
+
+      // Xác định loại nội dung của file
+      let contentType = "";
+      switch (fileTypeDoc) {
+        case "pdf":
+          contentType = "application/pdf";
+          break;
+        case "docx":
+          contentType =
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+          break;
+        case "xls":
+          contentType =
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+          break;
+        case "txt":
+          contentType = "text/plain";
+          break;
+        default:
+          contentType = "application/octet-stream"; // Loại mặc định nếu không phù hợp với các loại đã chỉ định
+      }
+
+      // Tạo đường dẫn cho file trên S3
+      const filePath = `${user.email}_${Date.now().toString()}.${fileTypeDoc}`;
+
+      // Tải blob của file
+      const response = await fetch(selectedFile.uri);
+      const blob = await response.blob();
+
+      // Upload file lên S3
+      const paramsS3 = {
+        Bucket: bucketName,
+        Key: filePath,
+        Body: blob,
+        ContentType: contentType, // Thêm loại nội dung của file vào yêu cầu tải lên S3
+      };
+      const data = await s3.upload(paramsS3).promise();
+      const fileURL = data.Location;
+
+      // Tạo tin nhắn cho việc gửi file
+      const senderMessage = {
+        content: "Đã gửi một file",
+        senderEmail: `${user.email}_${friend.email}`,
+        receiverEmail: friend.email,
+        timestamp: timestamp,
+        isSender: true,
+        fileURL: fileURL,
+        fileName: selectedFile.name, // Thêm URL của file vào tin nhắn
+      };
+      const receiverMessage = {
+        content: "Đã gửi một file",
+        senderEmail: `${friend.email}_${user.email}`,
+        receiverEmail: user.email,
+        timestamp: timestamp,
+        isSender: false,
+        fileURL: fileURL,
+        fileName: selectedFile.name, // Thêm URL của file vào tin nhắn
+      };
+
+      // Gửi tin nhắn qua Socket.IO
+      socket.emit("sendFileMessage", { senderMessage, receiverMessage });
+
+      // Cập nhật state messages
+      setMessages([...messages, senderMessage]);
+      scrollToBottom(); // Cuộn xuống cuối danh sách tin nhắn
+
+      // Reset selectedFile state
+      cancelDoc();
+    } catch (error) {
+      console.error("Error sending file:", error);
+    }
+  };
 
   const pickImage = async () => {
     // No permissions request is necessary for launching the image library
@@ -440,21 +584,32 @@ const BoxChat = ({ navigation, route }) => {
               },
             ]}
           >
-            {message.image ? (
-              // <Lightbox underlayColor="transparent">
+            {message.fileURL ? (
+              <View style={[styles.fileContainer, { flexDirection: "row" }]}>
+                <Text style={styles.fileName}>File: {message.fileName}</Text>
+                <Pressable
+                  style={{ marginLeft: 5 }}
+                  onPress={() =>
+                    handleFileDownload(message.fileURL, message.fileName)
+                  }
+                >
+                  <Icon name="download" size={20} color="black" />
+                </Pressable>
+              </View>
+            ) : message.image ? (
               <Image
                 resizeMode="contain"
                 source={{ uri: message.image }}
                 style={{
-                  width: "100%", // Điều chỉnh kích thước theo ý muốn của bạn
-                  aspectRatio: 1, // Duy trì tỷ lệ khung hình
+                  width: "100%",
+                  aspectRatio: 1,
                   borderRadius: 10,
                 }}
               />
             ) : (
-              // </Lightbox>
               <Text style={styles.messageText}>{message.content}</Text>
             )}
+
             <Text style={styles.messageTimestamp}>
               {formatMessageTimestamp(message.timestamp)}
             </Text>
@@ -469,8 +624,21 @@ const BoxChat = ({ navigation, route }) => {
           </Pressable>
         </View>
       )}
+
+      {selectedFile && (
+        <View style={styles.selectedImageContainer}>
+          <Text style={{ textAlign: "center", fontSize: 13 }}>
+            {selectedFile.name}
+          </Text>
+          {/* Hiển thị thông tin khác của file nếu cần */}
+          <Pressable onPress={cancelDoc} style={styles.cancelFileButton}>
+            <Icon name="close" size={14} color="white" />
+          </Pressable>
+        </View>
+      )}
+
       <View style={styles.inputContainer}>
-        <Pressable>
+        <Pressable onPress={pickFile}>
           <Icon
             name="paperclip"
             size={25}
@@ -494,6 +662,8 @@ const BoxChat = ({ navigation, route }) => {
               sendTextMessage(); // Gửi tin nhắn văn bản nếu có nội dung tin nhắn
             } else if (avatarImg !== null) {
               sendImageMessage(); // Gửi hình ảnh nếu có hình ảnh được chọn
+            } else if (selectedFile !== null) {
+              sendFile(); // Gửi file nếu có file được chọn
             }
           }}
         >
@@ -618,5 +788,28 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)", // Màu nền của nút hủy gửi
     borderRadius: 20, // Bo tròn các góc của nút
     padding: 5, // Tăng khoảng cách giữa biên nút và văn bản bên trong nút
+  },
+  cancelFileButton: {
+    position: "absolute", // Định vị nút hủy gửi tương đối với phần tử cha (selectedImageContainer)
+    top: -18, // Đặt vị trí của nút từ trên xuống 5px
+    right: 5, // Đặt vị trí của nút từ phải sang trái 5px
+    backgroundColor: "rgba(0, 0, 0, 0.5)", // Màu nền của nút hủy gửi
+    borderRadius: 20, // Bo tròn các góc của nút
+    padding: 5, // Tăng khoảng cách giữa biên nút và văn bản bên trong nút
+  },
+  fileContainer: {
+    backgroundColor: "#f2f2f2",
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  fileName: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 5,
+  },
+  downloadLink: {
+    color: "blue",
+    textDecorationLine: "underline",
   },
 });

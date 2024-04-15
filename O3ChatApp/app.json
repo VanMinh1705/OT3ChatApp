@@ -4,7 +4,10 @@
     "slug": "O3ChatApp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "permissions": ["CAMERA", "CAMERA_ROLL"], 
+    "permissions": [
+      "CAMERA",
+      "CAMERA_ROLL"
+    ],
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "plugins": [
@@ -13,7 +16,14 @@
         {
           "photosPermission": "The app accesses your photos to let you share them with your friends."
         }
-      ]],
+      ],
+      [
+        "expo-document-picker",
+        {
+          "permission": "The app accesses your documents to let you share them with your friends."
+        }
+      ]
+    ],
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -29,11 +39,24 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff",
-        "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"]
-      }
+        "permissions": [
+          "CAMERA",
+          "READ_EXTERNAL_STORAGE",
+          "WRITE_EXTERNAL_STORAGE"
+        ]
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.vanminh1705.O3ChatApp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "157dee2a-2167-44c5-b388-0483023d7d0a"
+      }
     }
   }
 }

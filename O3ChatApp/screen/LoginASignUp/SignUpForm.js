@@ -161,7 +161,7 @@ const SignUpForm = ({ navigation }) => {
 
           try {
             const responseOTP = await fetch(
-              "http://192.168.1.28:3000/send-otp",
+              "http://192.168.1.33:3000/send-otp",
               {
                 method: "POST",
                 headers: {
