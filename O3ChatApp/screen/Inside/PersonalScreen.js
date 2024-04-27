@@ -26,6 +26,8 @@ import {
   S3_BUCKET_NAME,
   DYNAMODB_TABLE_NAME,
 } from "@env";
+import { RadioButton } from "react-native-paper";
+import DatePickerModal from "@react-native-community/datetimepicker";
 
 export const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } =
   Dimensions.get("window");
@@ -35,8 +37,14 @@ const UserScreen = ({ navigation, user }) => {
     "keaniaone-regular": require("../../assets/fonts/KeaniaOne-Regular.ttf"),
   });
   const [avatarUri, setAvatarUri] = useState(user?.avatarUser);
+  const [hoTen, setHoTen] = useState(user?.hoTen);
+  const [email, setEmail] = useState(user?.email);
+  const [gioiTinh, setGioiTinh] = useState(user?.gioiTinh);
+  const [ngaySinh, setNgaySinh] = useState(user?.ngaySinh || new Date());
+  const [soDienThoai, setSoDienThoai] = useState(user?.soDienThoai);
   const [fileType, setFileType] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const bucketName = S3_BUCKET_NAME;
   const tableName = DYNAMODB_TABLE_NAME;
@@ -152,6 +160,40 @@ const UserScreen = ({ navigation, user }) => {
     }
   };
 
+  const updateUserInfo = async () => {
+    try {
+      const dynamoDB = new DynamoDB.DocumentClient({
+        region: REGION,
+        accessKeyId: ACCESS_KEY_ID,
+        secretAccessKey: SECRET_ACCESS_KEY,
+      });
+
+      const paramsDynamoDb = {
+        TableName: DYNAMODB_TABLE_NAME,
+        Key: { email: user.email },
+        UpdateExpression:
+          "set hoTen = :hoTen, gioiTinh = :gioiTinh, ngaySinh = :ngaySinh, soDienThoai = :soDienThoai",
+        ExpressionAttributeValues: {
+          ":hoTen": hoTen,
+          ":gioiTinh": gioiTinh,
+          ":ngaySinh": ngaySinh.toISOString(), // Chuyển ngày thành chuỗi ISO để lưu vào DynamoDB
+          ":soDienThoai": soDienThoai,
+        },
+        ReturnValues: "UPDATED_NEW",
+      };
+
+      await dynamoDB.update(paramsDynamoDb).promise();
+
+      Alert.alert(
+        "Thành công",
+        "Thông tin cá nhân đã được cập nhật thành công!"
+      );
+    } catch (error) {
+      console.error("Lỗi cập nhật thông tin cá nhân:", error);
+      Alert.alert("Lỗi", "Cập nhật thông tin cá nhân thất bại");
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <SafeAreaView>
@@ -262,14 +304,125 @@ const UserScreen = ({ navigation, user }) => {
                 />
               </Pressable>
               <Text style={styles.modalTitle}>Thông Tin Cá Nhân</Text>
-              <Text style={styles.modalText}>Tên: {user?.hoTen}</Text>
-              <Text style={styles.modalText}>Email: {user?.email}</Text>
-              <Text style={styles.modalText}>Giới tính: </Text>
-              <Text style={styles.modalText}>Ngày sinh: </Text>
-              <Text style={styles.modalText}>Số điện thoại: </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: "#fff",
+                  borderRadius: 10,
+                  padding: 2,
+                  width: 300,
+                  marginTop: 5,
+                }}
+              >
+                <Text style={styles.modalText}>Tên: </Text>
+                <TextInput
+                  style={styles.modalText}
+                  placeholder="Họ tên"
+                  value={hoTen}
+                  onChangeText={(text) => setHoTen(text)}
+                />
+                {/* <IconAnt name="edit" size={20} style={{ marginLeft: 10 }} /> */}
+              </View>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: "#fff",
+                  borderRadius: 10,
+                  padding: 2,
+                  width: 300,
+                  marginTop: 5,
+                }}
+              >
+                <Text style={styles.modalText}>Email: {user?.email}</Text>
+              </View>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: "#fff",
+                  borderRadius: 10,
+                  padding: 2,
+                  width: 300,
+                  marginTop: 5,
+                }}
+              >
+                <Text style={styles.modalText}>Giới tính: </Text>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <RadioButton
+                    value="Nam"
+                    status={gioiTinh === "Nam" ? "checked" : "unchecked"}
+                    onPress={() => setGioiTinh("Nam")}
+                  />
+                  <Text>Nam</Text>
+                </View>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginLeft: 20,
+                  }}
+                >
+                  <RadioButton
+                    value="Nữ"
+                    status={gioiTinh === "Nữ" ? "checked" : "unchecked"}
+                    onPress={() => setGioiTinh("Nữ")}
+                  />
+                  <Text>Nữ</Text>
+                </View>
+              </View>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: "#fff",
+                  borderRadius: 10,
+                  padding: 2,
+                  width: 300,
+                  marginTop: 5,
+                }}
+              >
+                <Text style={styles.modalText}>Ngày sinh: </Text>
+                <Pressable onPress={() => setShowDatePicker(true)}>
+                  <Text>{ngaySinh.toLocaleDateString("vi-VN")}</Text>
+                </Pressable>
+                {showDatePicker && (
+                  <DatePickerModal
+                    value={ngaySinh} // Đặt giá trị mặc định cho datepicker
+                    mode={"date"}
+                    display="spinner"
+                    onChange={(event, selectedDate) => {
+                      setShowDatePicker(false);
+                      if (selectedDate) {
+                        setNgaySinh(selectedDate);
+                      }
+                    }}
+                  />
+                )}
+              </View>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: "#fff",
+                  borderRadius: 10,
+                  padding: 2,
+                  width: 300,
+                  marginTop: 5,
+                }}
+              >
+                <Text style={styles.modalText}>Số điện thoại: </Text>
+                <TextInput
+                  style={[styles.modalText]}
+                  placeholder="Số điện thoại"
+                  value={soDienThoai}
+                  onChangeText={(text) => setSoDienThoai(text)}
+                />
+              </View>
               {/* Hiển thị các thông tin cá nhân khác nếu cần */}
               <View style={{ flexDirection: "row" }}>
-                <Pressable>
+                <Pressable onPress={updateUserInfo}>
                   <Text style={styles.updateButton}>Chỉnh sửa</Text>
                 </Pressable>
                 <Pressable onPress={() => setModalVisible(false)}>
@@ -399,7 +552,7 @@ const styles = StyleSheet.create({
   avatarBackground: {
     position: "absolute",
     borderRadius: 10,
-    height: "50%", // Điều chỉnh kích thước ảnh nền của modal
+    height: "70%", // Điều chỉnh kích thước ảnh nền của modal
     width: "90%", // Duy trì tỷ lệ khung hình
   },
 });

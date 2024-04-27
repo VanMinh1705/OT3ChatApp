@@ -10,3 +10,5 @@
     npx expo install expo-barcode-scanner
     npm install aws-sdk dotenv multer
     npm install react-native-dotenv --save-dev
+    npx expo install @react-native-community/datetimepicker
+    npm install react-native-paper

@@ -22,6 +22,7 @@ import BoxChat from "./screen/Inside/BoxChat";
 import CreateGroupScreen from "./screen/Inside/CreateGroupScreen";
 import GroupScreen from "./screen/Inside/GroupScreen";
 import PhoneAuthScreen from "./screen/LoginASignUp/PhoneAuthScreen";
+import GroupChat from "./screen/Inside/GroupChat";
 
 const LoginASign = ({ navigation }) => {
   const [fontsLoaded] = useFonts({
@@ -123,6 +124,7 @@ export default function App() {
         <Stack.Screen name="GroupScreen" component={GroupScreen} />
         <Stack.Screen name="CreateGroupScreen" component={CreateGroupScreen} />
         <Stack.Screen name="PhoneAuthScreen" component={PhoneAuthScreen} />
+        <Stack.Screen name="GroupChat" component={GroupChat} />
       </Stack.Navigator>
     </NavigationContainer>
   );

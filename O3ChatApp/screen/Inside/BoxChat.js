@@ -28,7 +28,7 @@ import io from "socket.io-client";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 
-const socket = io("http://192.168.1.33:3000");
+const socket = io("http://172.28.107.37:3000");
 
 const BoxChat = ({ navigation, route }) => {
   const { friend, user } = route.params;
