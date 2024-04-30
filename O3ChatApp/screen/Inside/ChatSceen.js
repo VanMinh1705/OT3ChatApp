@@ -76,22 +76,76 @@ const ChatScreen = ({ navigation, user, friend }) => {
   const handleChatWithFriend = (friend) => {
     navigation.navigate("BoxChat", { friend, user });
   };
-  const searchUser = async () => {
+
+  const searchUser = async (searchText) => {
     try {
-      // Kiểm tra nếu email tìm kiếm trùng khớp với email của người dùng hiện tại
-      if (email === user.email) {
-        setSearchResult([]); // Không hiển thị kết quả tìm kiếm
+      // Kiểm tra nếu không có dữ liệu nhập vào hoặc độ dài của dữ liệu nhập là 0
+      if (!searchText || searchText.trim().length === 0) {
+        setSearchResult([]); // Ẩn giao diện kết quả tìm kiếm
         return;
       }
 
-      const params = {
-        TableName: DYNAMODB_TABLE_NAME,
-        FilterExpression: "email = :email",
-        ExpressionAttributeValues: {
-          ":email": email,
+      // Tìm kiếm trước trong bảng Friends dựa trên email của bạn
+      let params = {
+        TableName: "Friends",
+        Key: {
+          senderEmail: user?.email, // Thay YOUR_EMAIL_HERE bằng email của bạn
         },
       };
-      const response = await dynamoDB.scan(params).promise();
+
+      let response = await dynamoDB.get(params).promise();
+
+      if (response.Item && response.Item.friends) {
+        // Lọc ra các mục trong mảng friends mà chứa searchText
+        const users = response.Item.friends
+          .filter((friend) => {
+            return (
+              friend.email
+                .toLowerCase()
+                .includes(searchText.toLowerCase().trim()) ||
+              friend.hoTen
+                .toLowerCase()
+                .includes(searchText.toLowerCase().trim())
+            );
+          })
+          .map(async (friend) => {
+            const isFriend = await checkFriendshipStatus(friend.email);
+            return { ...friend, isFriend };
+          });
+
+        // Chờ cho tất cả các promise hoàn thành trước khi cập nhật state
+        const resolvedUsers = await Promise.all(users);
+        setSearchResult(resolvedUsers);
+
+        // Kiểm tra nếu có kết quả từ bảng Friends thì kết thúc hàm tìm kiếm
+        if (resolvedUsers.length > 0) {
+          return;
+        }
+      }
+
+      // Nếu không tìm thấy trong bảng Friends và searchText không phải là một địa chỉ email hợp lệ,
+      // thì không tìm trong bảng Users và kết thúc hàm tìm kiếm
+      if (!isValidEmail(searchText) && !isValidPhoneNumber(searchText)) {
+        return;
+      }
+
+      if (searchText === user.email || searchText === user.soDienThoai) {
+        return;
+      }
+
+      // Nếu không tìm thấy trong bảng Friends và searchText là một địa chỉ email hợp lệ,
+      // tìm trong bảng Users
+      params = {
+        TableName: DYNAMODB_TABLE_NAME,
+        FilterExpression:
+          "contains(email, :search) or contains(soDienThoai, :search)",
+        ExpressionAttributeValues: {
+          ":search": searchText.toLowerCase().trim(),
+        },
+      };
+
+      response = await dynamoDB.scan(params).promise();
+
       if (response.Items) {
         const users = await Promise.all(
           response.Items.map(async (item) => {
@@ -109,16 +163,26 @@ const ChatScreen = ({ navigation, user, friend }) => {
     }
   };
 
-  const SearchResultItem = ({ user }) => {
-    return (
-      <View style={styles.searchResultItem}>
-        <Image source={{ uri: user.avatarUser }} style={styles.avatar} />
-        <View style={styles.userInfo}>
-          <Text style={styles.searchResultName}>{user.hoTen}</Text>
-          <Text style={styles.searchResultEmail}>{user.email}</Text>
-        </View>
-      </View>
-    );
+  // Hàm kiểm tra xem một chuỗi có phải là một địa chỉ email hợp lệ không
+  const isValidEmail = (email) => {
+    // Sử dụng một biểu thức chính quy để kiểm tra xem chuỗi có khớp với định dạng email hay không
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const isValidPhoneNumber = (phoneNumber) => {
+    // Sử dụng một biểu thức chính quy để kiểm tra xem chuỗi có khớp với định dạng số điện thoại hay không
+    const phoneRegex = /^0\d{9}$/;
+    return phoneRegex.test(phoneNumber);
+  };
+
+  const handleChangeText = (text) => {
+    setEmail(text); // Cập nhật state email
+    searchUser(text); // Gọi hàm searchUser với dữ liệu nhập vào
+  };
+
+  const handleClearText = () => {
+    setEmail("");
   };
 
   // Render danh sách các box chat
@@ -292,21 +356,33 @@ const ChatScreen = ({ navigation, user, friend }) => {
           <Pressable onPress={searchUser}>
             <IconAnt name="search1" size={30} color={"#fff"} />
           </Pressable>
-          <TextInput
-            placeholder="Tìm kiếm"
-            placeholderTextColor={"#fff"}
-            style={{
-              width: 235,
-              height: 30,
-              color: "#000",
-              fontSize: 16,
-              borderRadius: 10,
-              paddingLeft: 10,
-              borderWidth: 1,
-            }}
-            onChangeText={(text) => setEmail(text)}
-            onBlur={searchUser} // Gọi hàm searchUser khi người dùng kết thúc nhập liệu
-          />
+          <View style={{ flexDirection: "row" }}>
+            <TextInput
+              placeholder="Tìm kiếm"
+              placeholderTextColor={"#fff"}
+              style={{
+                width: 235,
+                height: 30,
+                color: "#000",
+                fontSize: 16,
+                borderRadius: 10,
+                paddingLeft: 10,
+                borderWidth: 1,
+              }}
+              value={email}
+              onChangeText={handleChangeText}
+            />
+            <Pressable
+              style={{
+                position: "absolute",
+                right: 10,
+                top: 5,
+              }}
+              onPress={handleClearText}
+            >
+              <IconAnt name="close" size={15} color={"#000"} />
+            </Pressable>
+          </View>
           <Pressable
             onPress={() => {
               navigation.navigate("QRScanner");
@@ -388,7 +464,7 @@ const ChatScreen = ({ navigation, user, friend }) => {
         </View>
 
         {/* Hiển thị kết quả tìm kiếm */}
-        {searchResult.length > 0 && (
+        {searchResult.length > 0 && email.length > 0 && (
           <View
             style={[
               styles.searchResultsContainer,
@@ -453,13 +529,15 @@ const styles = StyleSheet.create({
   addButton: {
     backgroundColor: "#03c6fc",
     borderRadius: 5,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 2,
+    paddingHorizontal: 5,
     alignSelf: "center",
+    marginLeft: "auto",
   },
   addButtonText: {
     color: "#fff",
     fontWeight: "bold",
+    fontSize: 12,
   },
   searchResultItem: {
     flexDirection: "row",
