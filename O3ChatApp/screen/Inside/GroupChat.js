@@ -52,75 +52,83 @@ const GroupChat = ({ navigation, route }) => {
   const [selectedFriends, setSelectedFriends] = useState({});
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileTypeDoc, setFileTypeDoc] = useState(""); // Thêm state mới để lưu trữ fileType
-  const renderOptions = () => {
-    return (
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isOptionsVisible}
-        onRequestClose={() => setIsOptionsVisible(false)}
-      >
-        <View style={styles.optionsContainer}>
-          <View style={styles.membersContainer}>
-            <Text style={styles.memberHeaderText}>Thành viên trong nhóm:</Text>
-            <ScrollView>
-              {friendsInGroup.length > 0 ? (
-                friendsInGroup.map((friend, index) => (
-                  <View key={index} style={styles.infoMenu}>
-                    <Pressable
-                      style={styles.checkboxContainer}
-                      onPress={() => toggleFriendSelection(friend.email)}
+  // Trong hàm renderOptions:
+const renderOptions = () => {
+  return (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={isOptionsVisible}
+      onRequestClose={() => setIsOptionsVisible(false)}
+    >
+      <View style={styles.optionsContainer}>
+        <View style={styles.membersContainer}>
+          <Text style={styles.memberHeaderText}>Thành viên trong nhóm:</Text>
+          <ScrollView>
+            {friendsInGroup.length > 0 ? (
+              friendsInGroup.map((friend, index) => (
+                <View key={index} style={styles.infoMenu}>
+                  <Pressable
+                    style={styles.checkboxContainer}
+                    onPress={() => toggleFriendSelection(friend.email)}
+                  >
+                    <View
+                      style={[
+                        styles.checkbox,
+                        {
+                          backgroundColor: selectedFriends[friend.email]
+                            ? "black"
+                            : "transparent",
+                        },
+                      ]}
                     >
-                      <View
-                        style={[
-                          styles.checkbox,
-                          {
-                            backgroundColor: selectedFriends[friend.email]
-                              ? "black"
-                              : "transparent",
-                          },
-                        ]}
-                      >
-                        {selectedFriends[friend.email] && (
-                          <Icon name="check" size={18} color="white" />
-                        )}
-                      </View>
-                    </Pressable>
-                    <Image
-                      style={styles.avatarImage}
-                      source={{ uri: friend.avatarUser }}
-                    />
-                    <Text style={styles.txtUser}>{friend.hoTen}</Text>
-                  </View>
-                ))
-              ) : (
-                <Text style={styles.txtUser}>Không có bạn bè</Text>
-              )}
-            </ScrollView>
-          </View>
-          <Pressable style={styles.optionItem} onPress={openAddMemberModal}>
-            <Text style={styles.optionText}>Thêm thành viên</Text>
-          </Pressable>
-          <Pressable
-            style={styles.optionItem}
-            onPress={handleDeleteSelectedMembers}
-          >
-            <Text style={styles.optionText}>Xóa thành viên</Text>
-          </Pressable>
-          <Pressable style={styles.optionItem} onPress={handleDeleteGroup}>
-            <Text style={styles.optionText}>Xóa nhóm</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setIsOptionsVisible(false)}
-            style={styles.cancelButton}
-          >
-            <Text style={styles.cancelButtonText}>Hủy</Text>
-          </Pressable>
+                      {selectedFriends[friend.email] && (
+                        <Icon name="check" size={18} color="white" />
+                      )}
+                    </View>
+                  </Pressable>
+                  <Image
+                    style={styles.avatarImage}
+                    source={{ uri: friend.avatarUser }}
+                  />
+                  <Text style={styles.txtUser}>{friend.hoTen}</Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.txtUser}>Không có bạn bè</Text>
+            )}
+          </ScrollView>
         </View>
-      </Modal>
-    );
-  };
-
+        {isGroupLeader() && (
+          <>
+            <Pressable style={styles.optionItem} onPress={openAddMemberModal}>
+              <Text style={styles.optionText}>Thêm thành viên</Text>
+            </Pressable>
+            <Pressable
+              style={styles.optionItem}
+              onPress={handleDeleteSelectedMembers}
+            >
+              <Text style={styles.optionText}>Xóa thành viên</Text>
+            </Pressable>
+            <Pressable style={styles.optionItem} onPress={handleDeleteGroup}>
+              <Text style={styles.optionText}>Xóa nhóm</Text>
+            </Pressable>
+          </>
+        )}
+        <Pressable
+          onPress={() => setIsOptionsVisible(false)}
+          style={styles.cancelButton}
+        >
+          <Text style={styles.cancelButtonText}>Hủy</Text>
+        </Pressable>
+      </View>
+    </Modal>
+  );
+};
+ // Hàm kiểm tra vai trò của người dùng
+const isGroupLeader = () => {
+  return group.roles && group.roles[user.email] === "Trưởng nhóm";
+};
   // Hàm xóa thành viên khỏi nhóm trong DynamoDB
   const deleteMembersFromGroup = async (selectedEmails) => {
     try {
@@ -162,22 +170,29 @@ const GroupChat = ({ navigation, route }) => {
 
   // Hàm xử lý khi nhấn nút "Xóa thành viên"
   const handleDeleteSelectedMembers = () => {
-    const selectedEmails = Object.keys(selectedFriends).filter(
-      (email) => selectedFriends[email]
-    );
-
-    if (selectedEmails.length === 0) {
-      Alert.alert("Thông báo", "Vui lòng chọn ít nhất một thành viên để xóa");
-      return;
+    if (isGroupLeader()) {
+      const selectedEmails = Object.keys(selectedFriends).filter(
+        (email) => selectedFriends[email]
+      );
+  
+      if (selectedEmails.length === 0) {
+        Alert.alert("Thông báo", "Vui lòng chọn ít nhất một thành viên để xóa");
+        return;
+      }
+  
+      // Gọi hàm xóa thành viên khỏi nhóm
+      deleteMembersFromGroup(selectedEmails);
+    } else {
+      Alert.alert("Thông báo", "Bạn không có quyền thực hiện hành động này.");
     }
-
-    // Gọi hàm xóa thành viên khỏi nhóm
-    deleteMembersFromGroup(selectedEmails);
   };
-
   const openAddMemberModal = () => {
-    setIsAddMemberModalVisible(true);
-    fetchFriendsNotInGroup();
+    if (isGroupLeader()) {
+      setIsAddMemberModalVisible(true);
+      fetchFriendsNotInGroup();
+    } else {
+      Alert.alert("Thông báo", "Bạn không có quyền thực hiện hành động này.");
+    }
   };
   const toggleFriendSelection = (email) => {
     setSelectedFriends((prevSelectedFriends) => ({
@@ -635,6 +650,7 @@ const GroupChat = ({ navigation, route }) => {
     );
   };
   const handleDeleteGroup = () => {
+    if (isGroupLeader()) {
     Alert.alert(
       "Xác nhận",
       "Bạn có chắc muốn xóa nhóm không?",
@@ -667,6 +683,9 @@ const GroupChat = ({ navigation, route }) => {
       ],
       { cancelable: true }
     );
+  } else {
+    Alert.alert("Thông báo", "Bạn không có quyền thực hiện hành động này.");
+  }
   };
   const dynamoDB = new DynamoDB.DocumentClient({
     region: REGION,
@@ -889,6 +908,63 @@ const GroupChat = ({ navigation, route }) => {
         </View>
       )}
 
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isAddMemberModalVisible}
+        onRequestClose={() => setIsAddMemberModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <ScrollView>
+              {friendsNotInGroup.length > 0 ? (
+                friendsNotInGroup.map((friend, index) => (
+                  <Pressable
+                    key={index}
+                    onPress={() => toggleFriendSelection(friend.email)}
+                    style={{ flexDirection: "row", left: 50 }}
+                  >
+                    <Image
+                      style={styles.avatarImage}
+                      source={{ uri: friend.avatarUser }}
+                    />
+                    <Text style={styles.txtUser}>{friend.hoTen}</Text>
+                    <View
+                      style={[
+                        styles.checkbox,
+                        {
+                          borderColor: selectedFriends[friend.email]
+                            ? "black"
+                            : "#ccc",
+                        },
+                      ]}
+                    >
+                      {selectedFriends[friend.email] ? (
+                        <Icon name="check" size={18} color="black" />
+                      ) : null}
+                    </View>
+                  </Pressable>
+                ))
+              ) : (
+                <Text style={styles.txtUser}>Không có bạn bè</Text>
+              )}
+            </ScrollView>
+          </View>
+          <View
+            style={{ flexDirection: "row", justifyContent: "space-around" }}
+          >
+            <Pressable onPress={closeAddMemberModal} style={styles.closeButton}>
+              <Text style={styles.closeButtonText}>Đóng</Text>
+            </Pressable>
+            <Pressable
+              onPress={addSelectedMembersToGroup}
+              style={styles.addMemberButton}
+            >
+              <Text style={styles.addMemberButtonText}>Thêm</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
       <Modal
         animationType="slide"
         transparent={true}

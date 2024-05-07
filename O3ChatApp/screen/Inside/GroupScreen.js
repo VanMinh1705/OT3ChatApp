@@ -44,12 +44,13 @@
         if (groupData.Items && groupData.Items.length > 0) {
           // Lọc những nhóm mà người dùng hiện tại đã tham gia
           const userJoinedGroups = groupData.Items.filter(group => 
-            group.members.find(member => member === user.email)
+              group.members.find(member => member === user.email) || Object.keys(group.roles).includes(user.email)
           );
           setGroups(userJoinedGroups);
-        } else {
+      } else {
           setGroups([]);
-        }
+      }
+      
       } catch (error) {
         console.error("Error fetching groups:", error);
       }

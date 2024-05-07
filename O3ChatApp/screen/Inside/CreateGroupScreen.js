@@ -209,30 +209,36 @@ const CreateGroupScreen = ({ navigation, route }) => {
       try {
         const groupId = `${user.email}_${Date.now().toString()}`;
         const groupNameValue = groupName;
-        const getSelectedFriendsEmail = () => {
-          const selectedFriendsEmail = Object.keys(selectedFriends)
-            .filter((index) => selectedFriends[index])
-            .map((index) => friends[index].email);
-          // Thêm email của người dùng vào danh sách thành viên
-          selectedFriendsEmail.push(user.email);
-          return selectedFriendsEmail;
-        };
-
+        const selectedFriendsEmail = Object.keys(selectedFriends)
+          .filter((index) => selectedFriends[index])
+          .map((index) => friends[index].email);
+  
         const groupData = {
           groupId: groupId,
-          members: getSelectedFriendsEmail(), // Sửa đổi ở đây để trả về một mảng các địa chỉ email riêng lẻ
-          groupName: groupNameValue, // Sử dụng giá trị từ state
-          avatarGroup: avatarUri || "", // Đảm bảo avatarUri được xác định hoặc gán giá trị mặc định
+          members: selectedFriendsEmail,
+          groupName: groupNameValue,
+          avatarGroup: avatarUri || "",
           messages: [],
+          roles: {}, // Khởi tạo roles
         };
-
+  
+        // Thiết lập vai trò cho người tạo nhóm
+        groupData.roles[user.email] = "Trưởng nhóm";
+  
+        // Thiết lập vai trò cho các thành viên
+        selectedFriendsEmail.forEach((email) => {
+          if (email !== user.email) {
+            groupData.roles[email] = "Thành viên";
+          }
+        });
+  
         const putParams = {
           TableName: "GroupChats",
           Item: groupData,
         };
-
+  
         await dynamoDB.put(putParams).promise();
-
+  
         navigation.navigate("PhoneBookScreen", { groups: groupData });
       } catch (error) {
         console.error("Error creating group:", error);
@@ -245,6 +251,7 @@ const CreateGroupScreen = ({ navigation, route }) => {
       );
     }
   };
+  
 
   return (
     <SafeAreaView style={styles.container}>
