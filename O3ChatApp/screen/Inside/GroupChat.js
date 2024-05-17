@@ -30,7 +30,7 @@ import * as FileSystem from "expo-file-system";
 import { Checkbox } from "react-native-paper";
 import { useFocusEffect } from "@react-navigation/native";
 
-const socket = io("http://172.28.107.37:3000");
+const socket = io("http://192.168.1.8:3000");
 
 const GroupChat = ({ navigation, route }) => {
   const { user } = route.params;
@@ -53,82 +53,143 @@ const GroupChat = ({ navigation, route }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileTypeDoc, setFileTypeDoc] = useState(""); // Thêm state mới để lưu trữ fileType
   // Trong hàm renderOptions:
-const renderOptions = () => {
-  return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={isOptionsVisible}
-      onRequestClose={() => setIsOptionsVisible(false)}
-    >
-      <View style={styles.optionsContainer}>
-        <View style={styles.membersContainer}>
-          <Text style={styles.memberHeaderText}>Thành viên trong nhóm:</Text>
-          <ScrollView>
-            {friendsInGroup.length > 0 ? (
-              friendsInGroup.map((friend, index) => (
-                <View key={index} style={styles.infoMenu}>
-                  <Pressable
-                    style={styles.checkboxContainer}
-                    onPress={() => toggleFriendSelection(friend.email)}
-                  >
-                    <View
-                      style={[
-                        styles.checkbox,
-                        {
-                          backgroundColor: selectedFriends[friend.email]
-                            ? "black"
-                            : "transparent",
-                        },
-                      ]}
+  const renderOptions = () => {
+    // Sắp xếp danh sách friendsInGroup để đưa Trưởng nhóm lên đầu
+    const sortedFriendsInGroup = [...friendsInGroup].sort((a, b) => {
+      if (group.roles[a.email] === "Trưởng nhóm") return -1;
+      if (group.roles[b.email] === "Trưởng nhóm") return 1;
+      return 0;
+    });
+
+    return (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isOptionsVisible}
+        onRequestClose={() => setIsOptionsVisible(false)}
+      >
+        <View style={styles.optionsContainer}>
+          <View style={styles.membersContainer}>
+            <Text style={styles.memberHeaderText}>Thành viên trong nhóm:</Text>
+            <ScrollView>
+              {sortedFriendsInGroup.length > 0 ? (
+                sortedFriendsInGroup.map((friend, index) => (
+                  <View key={index} style={styles.infoMenu}>
+                    <Pressable
+                      style={styles.checkboxContainer}
+                      onPress={() => toggleFriendSelection(friend.email)}
                     >
-                      {selectedFriends[friend.email] && (
-                        <Icon name="check" size={18} color="white" />
-                      )}
+                      <View
+                        style={[
+                          styles.checkbox,
+                          {
+                            backgroundColor: selectedFriends[friend.email]
+                              ? "black"
+                              : "transparent",
+                          },
+                        ]}
+                      >
+                        {selectedFriends[friend.email] && (
+                          <Icon name="check" size={18} color="white" />
+                        )}
+                      </View>
+                    </Pressable>
+                    <Image
+                      style={styles.avatarImage}
+                      source={{ uri: friend.avatarUser }}
+                    />
+                    <View style={styles.userInfo}>
+                      <Text style={styles.txtUser}>{friend.hoTen}</Text>
+                      <Text style={styles.txtRole}>
+                        {group.roles[friend.email]}
+                      </Text>
                     </View>
-                  </Pressable>
-                  <Image
-                    style={styles.avatarImage}
-                    source={{ uri: friend.avatarUser }}
-                  />
-                  <Text style={styles.txtUser}>{friend.hoTen}</Text>
-                </View>
-              ))
-            ) : (
-              <Text style={styles.txtUser}>Không có bạn bè</Text>
-            )}
-          </ScrollView>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.txtUser}>Không có bạn bè</Text>
+              )}
+            </ScrollView>
+          </View>
+
+          <Pressable style={styles.optionItem} onPress={openAddMemberModal}>
+            <Text style={styles.optionText}>Thêm thành viên</Text>
+          </Pressable>
+          <Pressable
+            style={styles.optionItem}
+            onPress={handleDeleteSelectedMembers}
+          >
+            <Text style={styles.optionText}>Xóa thành viên</Text>
+          </Pressable>
+          <Pressable style={styles.optionItem} onPress={leaveGroup}>
+            <Text style={styles.optionText}>Rời nhóm</Text>
+          </Pressable>
+          <Pressable style={styles.optionItem} onPress={handleDeleteGroup}>
+            <Text style={styles.optionText}>Giải tán nhóm</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setIsOptionsVisible(false)}
+            style={styles.cancelButton}
+          >
+            <Text style={styles.cancelButtonText}>Hủy</Text>
+          </Pressable>
         </View>
-        {isGroupLeader() && (
-          <>
-            <Pressable style={styles.optionItem} onPress={openAddMemberModal}>
-              <Text style={styles.optionText}>Thêm thành viên</Text>
-            </Pressable>
-            <Pressable
-              style={styles.optionItem}
-              onPress={handleDeleteSelectedMembers}
-            >
-              <Text style={styles.optionText}>Xóa thành viên</Text>
-            </Pressable>
-            <Pressable style={styles.optionItem} onPress={handleDeleteGroup}>
-              <Text style={styles.optionText}>Xóa nhóm</Text>
-            </Pressable>
-          </>
-        )}
-        <Pressable
-          onPress={() => setIsOptionsVisible(false)}
-          style={styles.cancelButton}
-        >
-          <Text style={styles.cancelButtonText}>Hủy</Text>
-        </Pressable>
-      </View>
-    </Modal>
-  );
-};
- // Hàm kiểm tra vai trò của người dùng
-const isGroupLeader = () => {
-  return group.roles && group.roles[user.email] === "Trưởng nhóm";
-};
+      </Modal>
+    );
+  };
+  // Hàm xử lý khi người dùng chọn "Rời nhóm"
+  const leaveGroup = async () => {
+    try {
+      // Loại bỏ người dùng ra khỏi danh sách thành viên của nhóm
+      const updatedGroupMembers = group.members.filter(
+        (member) => member !== user.email
+      );
+
+      // Loại bỏ người dùng ra khỏi danh sách vai trò của nhóm
+      const updatedGroupRoles = { ...group.roles };
+      delete updatedGroupRoles[user.email];
+
+      // Cập nhật dữ liệu trong cơ sở dữ liệu
+      const params = {
+        TableName: "GroupChats",
+        Key: {
+          groupId: group.groupId,
+        },
+        UpdateExpression: "SET members = :members, #r = :roles",
+        ExpressionAttributeValues: {
+          ":members": updatedGroupMembers,
+          ":roles": updatedGroupRoles,
+        },
+        ExpressionAttributeNames: {
+          "#r": "roles",
+        },
+        ReturnValues: "UPDATED_NEW",
+      };
+      await dynamoDB.update(params).promise();
+
+      // Cập nhật state của nhóm để loại bỏ người dùng ra khỏi danh sách thành viên và vai trò
+      setGroup((prevGroup) => ({
+        ...prevGroup,
+        members: updatedGroupMembers,
+        roles: updatedGroupRoles,
+      }));
+
+      // Đóng modal sau khi rời nhóm thành công
+      setIsOptionsVisible(false);
+      navigation.goBack();
+      // Thực hiện các hành động cần thiết sau khi rời nhóm thành công
+      // Ví dụ: hiển thị thông báo, cập nhật giao diện người dùng, v.v.
+    } catch (error) {
+      console.error("Error leaving group:", error);
+      // Xử lý lỗi cụ thể ở đây, ví dụ: hiển thị thông báo lỗi cho người dùng
+    }
+  };
+
+  // Hàm kiểm tra vai trò của người dùng
+  const isGroupLeader = () => {
+    return group.roles && group.roles[user.email] === "Trưởng nhóm";
+  };
   // Hàm xóa thành viên khỏi nhóm trong DynamoDB
   const deleteMembersFromGroup = async (selectedEmails) => {
     try {
@@ -174,12 +235,12 @@ const isGroupLeader = () => {
       const selectedEmails = Object.keys(selectedFriends).filter(
         (email) => selectedFriends[email]
       );
-  
+
       if (selectedEmails.length === 0) {
         Alert.alert("Thông báo", "Vui lòng chọn ít nhất một thành viên để xóa");
         return;
       }
-  
+
       // Gọi hàm xóa thành viên khỏi nhóm
       deleteMembersFromGroup(selectedEmails);
     } else {
@@ -187,12 +248,8 @@ const isGroupLeader = () => {
     }
   };
   const openAddMemberModal = () => {
-    if (isGroupLeader()) {
-      setIsAddMemberModalVisible(true);
-      fetchFriendsNotInGroup();
-    } else {
-      Alert.alert("Thông báo", "Bạn không có quyền thực hiện hành động này.");
-    }
+    setIsAddMemberModalVisible(true);
+    fetchFriendsNotInGroup();
   };
   const toggleFriendSelection = (email) => {
     setSelectedFriends((prevSelectedFriends) => ({
@@ -207,8 +264,8 @@ const isGroupLeader = () => {
 
   const fetchFriendsNotInGroup = async () => {
     try {
-      if (!user?.email) {
-        console.error("User email is not defined.");
+      if (!user?.email || !group?.groupId) {
+        console.error("User email or group ID is not defined.");
         return;
       }
 
@@ -223,7 +280,29 @@ const isGroupLeader = () => {
         const friends = friendData.Item.friends.filter(
           (friend) => !existingGroupMemberEmails.includes(friend.email)
         );
-        setFriendsNotInGroup(friends);
+
+        // Truy vấn cơ sở dữ liệu để lấy vai trò của các bạn trong nhóm
+        const getRolesParams = {
+          TableName: "GroupChats",
+          Key: { groupId: group.groupId },
+        };
+        const groupData = await dynamoDB.get(getRolesParams).promise();
+
+        if (groupData.Item && groupData.Item.roles) {
+          // Duyệt qua danh sách bạn mới thêm vào và thiết lập vai trò cho họ
+          const friendsWithRoles = friends.map((friend) => ({
+            ...friend,
+            role: groupData.Item.roles[friend.email] || "Thành viên",
+          }));
+          setFriendsNotInGroup(friendsWithRoles);
+        } else {
+          // Nếu không tìm thấy dữ liệu về vai trò, mặc định vai trò của các bạn là "Thành viên"
+          const friendsWithRoles = friends.map((friend) => ({
+            ...friend,
+            role: "Thành viên",
+          }));
+          setFriendsNotInGroup(friendsWithRoles);
+        }
       } else {
         setFriendsNotInGroup([]);
       }
@@ -232,6 +311,7 @@ const isGroupLeader = () => {
       // Xử lý lỗi cụ thể ở đây, ví dụ: hiển thị thông báo lỗi cho người dùng
     }
   };
+
   const fetchFriendsInGroup = async () => {
     try {
       if (!user?.email) {
@@ -246,9 +326,9 @@ const isGroupLeader = () => {
 
       if (usersData.Items) {
         const allUsers = usersData.Items;
-        const existingGroupMemberEmails = group.members.map((member) => member);
+        const groupMemberEmails = group.members;
         const friendsInGroup = allUsers.filter((user) =>
-          existingGroupMemberEmails.includes(user.email)
+          groupMemberEmails.includes(user.email)
         );
         setFriendsInGroup(friendsInGroup);
       } else {
@@ -303,232 +383,40 @@ const isGroupLeader = () => {
         return;
       }
 
-      const updatedGroupMembers = [...group.members];
+      const updatedGroupMembers = [...group.members, ...selectedMembers];
+      const updatedGroupRoles = { ...group.roles };
+
       selectedMembers.forEach((email) => {
-        // Kiểm tra xem người dùng đã được thêm vào nhóm chưa
-        if (!updatedGroupMembers.includes(email)) {
-          updatedGroupMembers.push(email);
-        }
+        updatedGroupRoles[email] = "Thành viên";
       });
 
       const params = {
-        TableName: "GroupChats", // Thay thế bằng tên bảng của bạn
+        TableName: "GroupChats",
         Key: {
-          groupId: `${group.groupId}`, // Sử dụng groupId của nhóm cần cập nhật
+          groupId: `${group.groupId}`,
         },
-        UpdateExpression: "SET members = :members",
+        UpdateExpression: "SET members = :members, #roles = :roles",
+        ExpressionAttributeNames: {
+          "#roles": "roles",
+        },
         ExpressionAttributeValues: {
           ":members": updatedGroupMembers,
+          ":roles": updatedGroupRoles,
         },
         ReturnValues: "UPDATED_NEW",
       };
       await dynamoDB.update(params).promise();
 
-      // Cập nhật state của nhóm để hiển thị người dùng mới được thêm
       setGroup((prevGroup) => ({
         ...prevGroup,
-        members: updatedGroupMembers.map((email) => ({ email: { S: email } })),
+        members: updatedGroupMembers,
+        roles: updatedGroupRoles,
       }));
 
-      // Đóng modal sau khi thêm thành viên thành công
       setIsAddMemberModalVisible(false);
-
-      // Thực hiện các hành động cần thiết khác sau khi thêm thành viên vào nhóm
-      // Ví dụ: hiển thị thông báo, cập nhật giao diện người dùng, v.v.
     } catch (error) {
       console.error("Error adding members to group:", error);
-      // Xử lý lỗi cụ thể ở đây, ví dụ: hiển thị thông báo lỗi cho người dùng
     }
-  };
-
-  const handleFileDownload = async (fileURL, fileName) => {
-    try {
-      // Xác định đường dẫn thư mục Download
-      let downloadDirectory = FileSystem.documentDirectory;
-      if (Platform.OS === "android") {
-        downloadDirectory += "Download/";
-      }
-
-      // Kiểm tra xem thư mục Download đã tồn tại chưa
-      const directoryInfo = await FileSystem.getInfoAsync(downloadDirectory);
-      if (!directoryInfo.exists) {
-        // Nếu thư mục không tồn tại, tạo mới nó
-        await FileSystem.makeDirectoryAsync(downloadDirectory, {
-          intermediates: true,
-        });
-      }
-
-      const downloadResumable = FileSystem.createDownloadResumable(
-        fileURL,
-        downloadDirectory + fileName // Lưu file vào thư mục Download với tên fileName
-      );
-
-      const { uri } = await downloadResumable.downloadAsync();
-
-      // Hiển thị thông báo cho người dùng
-      if (Platform.OS === "android") {
-        alert("File đã được tải xuống. Vui lòng mở thư mục Downloads để xem.");
-      } else {
-        alert(
-          "File đã được tải xuống. Bạn có thể mở nó từ trình quản lý tệp của thiết bị."
-        );
-      }
-      console.log("File downloaded to:", uri);
-    } catch (error) {
-      console.error("Download error:", error);
-    }
-  };
-
-  const cancelDoc = () => {
-    setSelectedFile(null);
-    setFileTypeDoc("");
-  };
-
-  const sendFile = async () => {
-    try {
-      if (selectedFile === null) return;
-
-      const timestamp = new Date().toISOString();
-
-      // Xác định loại nội dung của file
-      let contentType = "";
-      switch (fileTypeDoc) {
-        case "pdf":
-          contentType = "application/pdf";
-          break;
-        case "docx":
-          contentType =
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-          break;
-        case "xls":
-          contentType =
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-          break;
-        case "txt":
-          contentType = "text/plain";
-          break;
-        default:
-          contentType = "application/octet-stream"; // Loại mặc định nếu không phù hợp với các loại đã chỉ định
-      }
-
-      // Tạo đường dẫn cho file trên S3
-      const filePath = `${user.email}_${Date.now().toString()}.${fileTypeDoc}`;
-
-      // Tải blob của file
-      const response = await fetch(selectedFile.uri);
-      const blob = await response.blob();
-
-      // Upload file lên S3
-      const paramsS3 = {
-        Bucket: bucketName,
-        Key: filePath,
-        Body: blob,
-        ContentType: contentType, // Thêm loại nội dung của file vào yêu cầu tải lên S3
-      };
-      const data = await s3.upload(paramsS3).promise();
-      const fileURL = data.Location;
-
-      // Tạo tin nhắn cho việc gửi file
-      const senderMessage = {
-        content: "Sent a file",
-        groupId: group.groupId,
-        senderEmail: user.email,
-        timestamp: timestamp,
-        fileURL: fileURL,
-        fileName: selectedFile.name, // Thêm tên của file vào tin nhắn
-      };
-
-      // Gửi tin nhắn file trong nhóm qua Socket.IO
-      socket.emit("sendGroupMessage", { senderMessage });
-
-      // Cập nhật state messages
-      setMessages([...messages, senderMessage]);
-      scrollToBottom(); // Cuộn xuống cuối danh sách tin nhắn
-
-      // Reset selectedFile state
-      cancelDoc();
-    } catch (error) {
-      console.error("Error sending group file:", error);
-    }
-  };
-
-  const pickImage = async () => {
-    // No permissions request is necessary for launching the image library
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
-      aspect: [1, 1],
-      quality: 1,
-    });
-
-    console.log(result);
-
-    if (!result.canceled) {
-      setAvatarImg(result.assets[0].uri);
-
-      // Xác định fileType từ tên file
-      const image = result.assets[0].uri.split(".");
-      const fileType = image[image.length - 1];
-      setFileType(fileType); // Lưu fileType vào state hoặc truyền vào hàm signUp
-    }
-  };
-
-  const sendImageMessage = async () => {
-    try {
-      if (avatarImg === null) return;
-
-      const timestamp = new Date().toISOString();
-      let contentType = "";
-      switch (fileTypeDoc) {
-        case "jpg":
-        case "jpeg":
-          contentType = "image/jpeg";
-          break;
-        case "png":
-          contentType = "image/png";
-          break;
-        case "gif":
-          contentType = "image/gif";
-          break;
-        default:
-          contentType = "application/octet-stream";
-      }
-
-      const filePath = `${user.email}_${Date.now().toString()}.${fileTypeDoc}`;
-      const response = await fetch(avatarImg);
-      const blob = await response.blob();
-
-      const paramsS3 = {
-        Bucket: bucketName,
-        Key: filePath,
-        Body: blob,
-        ContentType: contentType,
-      };
-      const data = await s3.upload(paramsS3).promise();
-      const imageURL = data.Location;
-
-      const senderMessage = {
-        content: "Sent an image",
-        groupId: group.groupId,
-        senderEmail: user.email,
-        timestamp: timestamp,
-        image: imageURL,
-      };
-
-      // Gửi tin nhắn hình ảnh trong nhóm thông qua socket
-      socket.emit("sendGroupMessage", { senderMessage });
-
-      // Không cần thêm tin nhắn vào danh sách trước khi nhận phản hồi từ socket
-
-      cancelImage();
-      scrollToBottom();
-    } catch (error) {
-      console.error("Error sending group image:", error);
-    }
-  };
-
-  const cancelImage = () => {
-    setAvatarImg(null);
-    setFileType(""); // Reset loại của hình ảnh khi hủy gửi
   };
 
   const openModal = (message, index) => {
@@ -651,41 +539,41 @@ const isGroupLeader = () => {
   };
   const handleDeleteGroup = () => {
     if (isGroupLeader()) {
-    Alert.alert(
-      "Xác nhận",
-      "Bạn có chắc muốn xóa nhóm không?",
-      [
-        {
-          text: "Hủy",
-          style: "cancel",
-        },
-        {
-          text: "Xóa",
-          onPress: async () => {
-            try {
-              // Thực hiện logic xóa nhóm trên AWS
-              const params = {
-                TableName: "GroupChats", // Thay thế bằng tên bảng của bạn
-                Key: {
-                  groupId: `${group.groupId}`, // Sử dụng groupId của nhóm cần xóa
-                },
-              };
-              await dynamoDB.delete(params).promise();
-
-              // Chuyển người dùng trở lại màn hình trước đó sau khi xóa nhóm thành công
-              navigation.goBack();
-            } catch (error) {
-              console.error("Error deleting group:", error);
-            }
+      Alert.alert(
+        "Xác nhận",
+        "Bạn có chắc muốn xóa nhóm không?",
+        [
+          {
+            text: "Hủy",
+            style: "cancel",
           },
-          style: "destructive",
-        },
-      ],
-      { cancelable: true }
-    );
-  } else {
-    Alert.alert("Thông báo", "Bạn không có quyền thực hiện hành động này.");
-  }
+          {
+            text: "Xóa",
+            onPress: async () => {
+              try {
+                // Thực hiện logic xóa nhóm trên AWS
+                const params = {
+                  TableName: "GroupChats", // Thay thế bằng tên bảng của bạn
+                  Key: {
+                    groupId: `${group.groupId}`, // Sử dụng groupId của nhóm cần xóa
+                  },
+                };
+                await dynamoDB.delete(params).promise();
+
+                // Chuyển người dùng trở lại màn hình trước đó sau khi xóa nhóm thành công
+                navigation.goBack();
+              } catch (error) {
+                console.error("Error deleting group:", error);
+              }
+            },
+            style: "destructive",
+          },
+        ],
+        { cancelable: true }
+      );
+    } else {
+      Alert.alert("Thông báo", "Bạn không có quyền thực hiện hành động này.");
+    }
   };
   const dynamoDB = new DynamoDB.DocumentClient({
     region: REGION,
@@ -706,39 +594,38 @@ const isGroupLeader = () => {
   }, [navigation]);
 
   useEffect(() => {
-    const intervalId = setInterval(async () => {
-      await fetchMessages();
-    }, 500);
+    // const intervalId = setInterval(async () => {
+    //   await fetchMessages();
+    // }, 500);
 
     // Gọi hàm fetchMessages khi component được mount lần đầu tiên
-    // fetchMessages();
+    fetchMessages();
 
     // Cleanup function để ngăn chặn memory leaks khi component unmount
-    return () => clearInterval(intervalId);
+    // return () => clearInterval(intervalId);
   }, []);
 
   useEffect(() => {
-    socket.on("receiveGroupMessage", ({ senderMessage }) => {
-      // Kiểm tra xem tin nhắn có phải từ group hiện tại hay không
-      if (senderMessage.groupId === group.groupId) {
-        const isCurrentSender = senderMessage.senderEmail === user.email;
+    // Tham gia vào phòng chat nhóm
+    socket.emit("joinGroup", group.groupId);
 
-        // Chỉ cập nhật tin nhắn nếu không phải là tin nhắn từ client gửi
-        if (!isCurrentSender) {
-          // Cập nhật giao diện người dùng với tin nhắn mới
-          setMessages((prevMessages) => [
-            ...prevMessages,
-            { ...senderMessage, isSender: isCurrentSender },
-          ]);
-          scrollToBottom(); // Cuộn xuống cuối danh sách tin nhắn
-        }
-      }
+    // ... Các logic khác ...
+
+    return () => {
+      // Rời khỏi phòng chat nhóm khi component unmount
+      socket.emit("leaveGroup", group.groupId);
+    };
+  }, [group.groupId]);
+
+  useEffect(() => {
+    socket.on("receiveGroupMessage", ({ senderMessage }) => {
+      setMessages((prevMessages) => [...prevMessages, senderMessage]);
     });
 
     return () => {
       socket.off("receiveGroupMessage");
     };
-  }, [group.groupId, user.email]);
+  }, []);
 
   const fetchMessages = async () => {
     try {
@@ -753,11 +640,35 @@ const isGroupLeader = () => {
         ? senderResponse.Item.messages
         : [];
 
-      // Không cần thay đổi đường dẫn hình ảnh ở đây, sử dụng trực tiếp đường dẫn từ tin nhắn
-      setMessages(senderMessages);
+      // Lặp qua các tin nhắn để lấy thông tin về người gửi từ bảng Users
+      const updatedMessages = await Promise.all(
+        senderMessages.map(async (message) => {
+          // Gọi hàm không đồng bộ để lấy thông tin người gửi
+          const senderInfo = await fetchSenderInfo(message.senderEmail);
+          // Thêm thông tin về người gửi vào tin nhắn
+          return { ...message, senderInfo };
+        })
+      );
+
+      // Cập nhật trạng thái messages với các tin nhắn đã được cập nhật thông tin người gửi
+      setMessages(updatedMessages);
       scrollToBottom();
     } catch (error) {
       console.error("Error fetching messages:", error);
+    }
+  };
+
+  const fetchSenderInfo = async (email) => {
+    try {
+      const params = {
+        TableName: "Users",
+        Key: { email: email },
+      };
+      const response = await dynamoDB.get(params).promise();
+      return response.Item; // Trả về toàn bộ thông tin của người gửi
+    } catch (error) {
+      console.error("Error fetching sender info:", error);
+      return null; // Trả về null nếu xảy ra lỗi
     }
   };
 
@@ -781,7 +692,6 @@ const isGroupLeader = () => {
       };
 
       // Thêm tin nhắn mới vào danh sách tin nhắn chỉ sau khi nó được gửi thành công
-      // Tin nhắn của người gửi hiển thị bên phải, tin nhắn của người khác hiển thị bên trái
       setMessages([...messages, senderMessage]);
       setNewMessage("");
       scrollToBottom();
@@ -789,6 +699,196 @@ const isGroupLeader = () => {
       socket.emit("sendGroupMessage", { senderMessage }); // Gửi tin nhắn nhóm
     } catch (error) {
       console.error("Error sending group message:", error);
+    }
+  };
+
+  const pickImage = async () => {
+    // No permissions request is necessary for launching the image library
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      aspect: [1, 1],
+      quality: 1,
+    });
+
+    console.log(result);
+
+    if (!result.canceled) {
+      setAvatarImg(result.assets[0].uri);
+
+      // Xác định fileType từ tên file
+      const image = result.assets[0].uri.split(".");
+      const fileType = image[image.length - 1];
+      setFileType(fileType); // Lưu fileType vào state hoặc truyền vào hàm signUp
+    }
+  };
+
+  const sendImageMessage = async () => {
+    try {
+      if (avatarImg === null) return;
+
+      const timestamp = new Date().toISOString();
+      let contentType = "";
+      switch (fileTypeDoc) {
+        case "jpg":
+        case "jpeg":
+          contentType = "image/jpeg";
+          break;
+        case "png":
+          contentType = "image/png";
+          break;
+        case "gif":
+          contentType = "image/gif";
+          break;
+        default:
+          contentType = "application/octet-stream";
+      }
+
+      const filePath = `${user.email}_${Date.now().toString()}.${fileTypeDoc}`;
+      const response = await fetch(avatarImg);
+      const blob = await response.blob();
+
+      const paramsS3 = {
+        Bucket: bucketName,
+        Key: filePath,
+        Body: blob,
+        ContentType: contentType,
+      };
+      const data = await s3.upload(paramsS3).promise();
+      const imageURL = data.Location;
+
+      const senderMessage = {
+        content: "Sent an image",
+        groupId: group.groupId,
+        senderEmail: user.email,
+        timestamp: timestamp,
+        image: imageURL,
+      };
+
+      // Gửi tin nhắn hình ảnh trong nhóm thông qua socket
+      socket.emit("sendGroupMessage", { senderMessage });
+
+      // Không cần thêm tin nhắn vào danh sách trước khi nhận phản hồi từ socket
+
+      cancelImage();
+      scrollToBottom();
+    } catch (error) {
+      console.error("Error sending group image:", error);
+    }
+  };
+
+  const cancelImage = () => {
+    setAvatarImg(null);
+    setFileType(""); // Reset loại của hình ảnh khi hủy gửi
+  };
+
+  const handleFileDownload = async (fileURL, fileName) => {
+    try {
+      // Xác định đường dẫn thư mục Download
+      let downloadDirectory = FileSystem.documentDirectory;
+      if (Platform.OS === "android") {
+        downloadDirectory += "Download/";
+      }
+
+      // Kiểm tra xem thư mục Download đã tồn tại chưa
+      const directoryInfo = await FileSystem.getInfoAsync(downloadDirectory);
+      if (!directoryInfo.exists) {
+        // Nếu thư mục không tồn tại, tạo mới nó
+        await FileSystem.makeDirectoryAsync(downloadDirectory, {
+          intermediates: true,
+        });
+      }
+
+      const downloadResumable = FileSystem.createDownloadResumable(
+        fileURL,
+        downloadDirectory + fileName // Lưu file vào thư mục Download với tên fileName
+      );
+
+      const { uri } = await downloadResumable.downloadAsync();
+
+      // Hiển thị thông báo cho người dùng
+      if (Platform.OS === "android") {
+        alert("File đã được tải xuống. Vui lòng mở thư mục Downloads để xem.");
+      } else {
+        alert(
+          "File đã được tải xuống. Bạn có thể mở nó từ trình quản lý tệp của thiết bị."
+        );
+      }
+      console.log("File downloaded to:", uri);
+    } catch (error) {
+      console.error("Download error:", error);
+    }
+  };
+
+  const cancelDoc = () => {
+    setSelectedFile(null);
+    setFileTypeDoc("");
+  };
+
+  const sendFile = async () => {
+    try {
+      if (selectedFile === null) return;
+
+      const timestamp = new Date().toISOString();
+
+      // Xác định loại nội dung của file
+      let contentType = "";
+      switch (fileTypeDoc) {
+        case "pdf":
+          contentType = "application/pdf";
+          break;
+        case "docx":
+          contentType =
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+          break;
+        case "xls":
+          contentType =
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+          break;
+        case "txt":
+          contentType = "text/plain";
+          break;
+        default:
+          contentType = "application/octet-stream"; // Loại mặc định nếu không phù hợp với các loại đã chỉ định
+      }
+
+      // Tạo đường dẫn cho file trên S3
+      const filePath = `${user.email}_${Date.now().toString()}.${fileTypeDoc}`;
+
+      // Tải blob của file
+      const response = await fetch(selectedFile.uri);
+      const blob = await response.blob();
+
+      // Upload file lên S3
+      const paramsS3 = {
+        Bucket: bucketName,
+        Key: filePath,
+        Body: blob,
+        ContentType: contentType, // Thêm loại nội dung của file vào yêu cầu tải lên S3
+      };
+      const data = await s3.upload(paramsS3).promise();
+      const fileURL = data.Location;
+
+      // Tạo tin nhắn cho việc gửi file
+      const senderMessage = {
+        content: "Sent a file",
+        groupId: group.groupId,
+        senderEmail: user.email,
+        timestamp: timestamp,
+        fileURL: fileURL,
+        fileName: selectedFile.name, // Thêm tên của file vào tin nhắn
+      };
+
+      // Gửi tin nhắn file trong nhóm qua Socket.IO
+      socket.emit("sendGroupMessage", { senderMessage });
+
+      // Cập nhật state messages
+      setMessages([...messages, senderMessage]);
+      scrollToBottom(); // Cuộn xuống cuối danh sách tin nhắn
+
+      // Reset selectedFile state
+      cancelDoc();
+    } catch (error) {
+      console.error("Error sending group file:", error);
     }
   };
 
@@ -850,52 +950,126 @@ const isGroupLeader = () => {
         ref={scrollViewRef}
       >
         {messages.map((message, index) => (
-          <Pressable
-            key={index}
-            onLongPress={() => handleLongPress(message, index)}
-            style={[
-              styles.messageContainer,
-              {
-                alignSelf:
-                  message.senderEmail === user.email
-                    ? "flex-end"
-                    : "flex-start", // Điều chỉnh alignment dựa vào email của người gửi
-                backgroundColor:
-                  message.senderEmail === user.email ? "#94e5f2" : "#dddddd", // Điều chỉnh màu nền dựa vào email của người gửi
-                opacity:
-                  selectedMessage && selectedMessageIndex !== index ? 0.5 : 1,
-              },
-            ]}
-          >
-            {message.fileURL ? (
-              <View style={[styles.fileContainer, { flexDirection: "row" }]}>
-                <Text style={styles.fileName}>File: {message.fileName}</Text>
-                <Pressable
-                  style={{ marginLeft: 5 }}
-                  onPress={() =>
-                    handleFileDownload(message.fileURL, message.fileName)
-                  }
-                >
-                  <Icon name="download" size={20} color="black" />
-                </Pressable>
-              </View>
-            ) : message.image ? (
-              <Image
-                resizeMode="contain"
-                source={{ uri: message.image }}
-                style={{
-                  width: "100%", // Điều chỉnh kích thước theo ý muốn của bạn
-                  aspectRatio: 1, // Duy trì tỷ lệ khung hình
-                  borderRadius: 10,
-                }}
-              />
-            ) : (
-              <Text style={styles.messageText}>{message.content}</Text>
+          <View key={index}>
+            {message.senderEmail !== user.email &&
+              message.senderInfo &&
+              message.senderInfo.avatarUser && (
+                <View style={{ flexDirection: "row" }}>
+                  <Image
+                    source={{ uri: message.senderInfo.avatarUser }}
+                    style={styles.avatarImage}
+                  />
+                  <Pressable
+                    key={index}
+                    onLongPress={() => handleLongPress(message, index)}
+                    style={[
+                      styles.messageContainer,
+                      {
+                        alignSelf: "flex-start",
+                        backgroundColor: "#dddddd",
+                        opacity:
+                          selectedMessage && selectedMessageIndex !== index
+                            ? 0.5
+                            : 1,
+                        marginLeft: 10, // Add margin to separate avatar and message
+                      },
+                    ]}
+                  >
+                    {message.senderInfo && message.senderInfo.hoTen && (
+                      <Text style={{ fontWeight: "bold" }}>
+                        {message.senderInfo.hoTen}
+                      </Text>
+                    )}
+
+                    {message.fileURL ? (
+                      <View
+                        style={[styles.fileContainer, { flexDirection: "row" }]}
+                      >
+                        <Text style={styles.fileName}>
+                          File: {message.fileName}
+                        </Text>
+                        <Pressable
+                          style={{ marginLeft: 5 }}
+                          onPress={() =>
+                            handleFileDownload(
+                              message.fileURL,
+                              message.fileName
+                            )
+                          }
+                        >
+                          <Icon name="download" size={20} color="black" />
+                        </Pressable>
+                      </View>
+                    ) : message.image ? (
+                      <Image
+                        resizeMode="contain"
+                        source={{ uri: message.image }}
+                        style={{
+                          width: "100%",
+                          aspectRatio: 1,
+                          borderRadius: 10,
+                        }}
+                      />
+                    ) : (
+                      <Text style={styles.messageText}>{message.content}</Text>
+                    )}
+                    <Text style={styles.messageTimestamp}>
+                      {formatMessageTimestamp(message.timestamp)}
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
+            {message.senderEmail === user.email && (
+              <Pressable
+                key={index}
+                onLongPress={() => handleLongPress(message, index)}
+                style={[
+                  styles.messageContainer,
+                  {
+                    alignSelf: "flex-end",
+                    backgroundColor: "#94e5f2",
+                    opacity:
+                      selectedMessage && selectedMessageIndex !== index
+                        ? 0.5
+                        : 1,
+                  },
+                ]}
+              >
+                {message.fileURL ? (
+                  <View
+                    style={[styles.fileContainer, { flexDirection: "row" }]}
+                  >
+                    <Text style={styles.fileName}>
+                      File: {message.fileName}
+                    </Text>
+                    <Pressable
+                      style={{ marginLeft: 5 }}
+                      onPress={() =>
+                        handleFileDownload(message.fileURL, message.fileName)
+                      }
+                    >
+                      <Icon name="download" size={20} color="black" />
+                    </Pressable>
+                  </View>
+                ) : message.image ? (
+                  <Image
+                    resizeMode="contain"
+                    source={{ uri: message.image }}
+                    style={{
+                      width: "100%",
+                      aspectRatio: 1,
+                      borderRadius: 10,
+                    }}
+                  />
+                ) : (
+                  <Text style={styles.messageText}>{message.content}</Text>
+                )}
+                <Text style={styles.messageTimestamp}>
+                  {formatMessageTimestamp(message.timestamp)}
+                </Text>
+              </Pressable>
             )}
-            <Text style={styles.messageTimestamp}>
-              {formatMessageTimestamp(message.timestamp)}
-            </Text>
-          </Pressable>
+          </View>
         ))}
       </ScrollView>
 
@@ -904,6 +1078,18 @@ const isGroupLeader = () => {
           <Image source={{ uri: avatarImg }} style={styles.selectedImage} />
           <Pressable onPress={cancelImage} style={styles.cancelImageButton}>
             <Icon name="close" size={20} color="white" />
+          </Pressable>
+        </View>
+      )}
+
+      {selectedFile && (
+        <View style={styles.selectedImageContainer}>
+          <Text style={{ textAlign: "center", fontSize: 13 }}>
+            {selectedFile.name}
+          </Text>
+          {/* Hiển thị thông tin khác của file nếu cần */}
+          <Pressable onPress={cancelDoc} style={styles.cancelFileButton}>
+            <Icon name="close" size={14} color="white" />
           </Pressable>
         </View>
       )}
@@ -922,13 +1108,8 @@ const isGroupLeader = () => {
                   <Pressable
                     key={index}
                     onPress={() => toggleFriendSelection(friend.email)}
-                    style={{ flexDirection: "row", left: 50 }}
+                    style={{ flexDirection: "row", marginTop: 10 }}
                   >
-                    <Image
-                      style={styles.avatarImage}
-                      source={{ uri: friend.avatarUser }}
-                    />
-                    <Text style={styles.txtUser}>{friend.hoTen}</Text>
                     <View
                       style={[
                         styles.checkbox,
@@ -943,6 +1124,11 @@ const isGroupLeader = () => {
                         <Icon name="check" size={18} color="black" />
                       ) : null}
                     </View>
+                    <Image
+                      style={styles.avatarImage}
+                      source={{ uri: friend.avatarUser }}
+                    />
+                    <Text style={styles.txtUser}>{friend.hoTen}</Text>
                   </Pressable>
                 ))
               ) : (
@@ -965,63 +1151,7 @@ const isGroupLeader = () => {
           </View>
         </View>
       </Modal>
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isAddMemberModalVisible}
-        onRequestClose={() => setIsAddMemberModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <ScrollView>
-              {friendsNotInGroup.length > 0 ? (
-                friendsNotInGroup.map((friend, index) => (
-                  <Pressable
-                    key={index}
-                    onPress={() => toggleFriendSelection(friend.email)}
-                    style={{ flexDirection: "row", left: 50 }}
-                  >
-                    <Image
-                      style={styles.avatarImage}
-                      source={{ uri: friend.avatarUser }}
-                    />
-                    <Text style={styles.txtUser}>{friend.hoTen}</Text>
-                    <View
-                      style={[
-                        styles.checkbox,
-                        {
-                          borderColor: selectedFriends[friend.email]
-                            ? "black"
-                            : "#ccc",
-                        },
-                      ]}
-                    >
-                      {selectedFriends[friend.email] ? (
-                        <Icon name="check" size={18} color="black" />
-                      ) : null}
-                    </View>
-                  </Pressable>
-                ))
-              ) : (
-                <Text style={styles.txtUser}>Không có bạn bè</Text>
-              )}
-            </ScrollView>
-          </View>
-          <View
-            style={{ flexDirection: "row", justifyContent: "space-around" }}
-          >
-            <Pressable onPress={closeAddMemberModal} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>Đóng</Text>
-            </Pressable>
-            <Pressable
-              onPress={addSelectedMembersToGroup}
-              style={styles.addMemberButton}
-            >
-              <Text style={styles.addMemberButtonText}>Thêm</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+
       <View style={styles.inputContainer}>
         <Pressable onPress={pickFile}>
           <Icon
@@ -1066,6 +1196,26 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
+  },
+  closeButton: {
+    backgroundColor: "#ccc",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+  },
+  closeButtonText: {
+    color: "black",
+    fontWeight: "bold",
+  },
+  addMemberButton: {
+    backgroundColor: "green",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+  },
+  addMemberButtonText: {
+    color: "white",
+    fontWeight: "bold",
   },
   infoMenu: {
     width: "100%",
@@ -1143,15 +1293,19 @@ const styles = StyleSheet.create({
     width: 300,
     position: "absolute",
     alignSelf: "center",
-    top: 20,
+    top: 100,
   },
   avatarImage: {
-    width: 46,
-    height: 46,
+    width: 40,
+    height: 40,
     borderRadius: 25,
     marginLeft: 13,
+    borderWidth: 1,
+    borderColor: "#000",
+    top: 5,
   },
   txtUser: {
+    marginTop: 5,
     color: "#000",
     fontSize: 18,
     marginLeft: 10,
@@ -1160,9 +1314,17 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     borderRadius: 10,
     elevation: 5,
-    padding: 20,
     alignSelf: "stretch",
     flexDirection: "row",
+  },
+  txtRole: {
+    marginLeft: 10,
+    fontSize: 12,
+    color: "gray",
+  },
+  userInfo: {
+    flexDirection: "column",
+    marginLeft: 10,
   },
   modalItem: {
     flex: 1, // Sử dụng flex để tin nhắn tự mở rộng theo nội dung của nó
@@ -1192,6 +1354,14 @@ const styles = StyleSheet.create({
   cancelImageButton: {
     position: "absolute", // Định vị nút hủy gửi tương đối với phần tử cha (selectedImageContainer)
     top: 5, // Đặt vị trí của nút từ trên xuống 5px
+    right: 5, // Đặt vị trí của nút từ phải sang trái 5px
+    backgroundColor: "rgba(0, 0, 0, 0.5)", // Màu nền của nút hủy gửi
+    borderRadius: 20, // Bo tròn các góc của nút
+    padding: 5, // Tăng khoảng cách giữa biên nút và văn bản bên trong nút
+  },
+  cancelFileButton: {
+    position: "absolute", // Định vị nút hủy gửi tương đối với phần tử cha (selectedImageContainer)
+    top: -18, // Đặt vị trí của nút từ trên xuống 5px
     right: 5, // Đặt vị trí của nút từ phải sang trái 5px
     backgroundColor: "rgba(0, 0, 0, 0.5)", // Màu nền của nút hủy gửi
     borderRadius: 20, // Bo tròn các góc của nút

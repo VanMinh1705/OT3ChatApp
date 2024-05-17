@@ -63,20 +63,44 @@ const CreateGroupScreen = ({ navigation, route }) => {
     try {
       const getFriendsParams = {
         TableName: "Friends",
-        Key: { senderEmail: user?.email },
+        Key: { senderEmail: user?.email }, // Assuming user is defined somewhere
       };
       const friendData = await dynamoDB.get(getFriendsParams).promise();
 
       if (friendData.Item && friendData.Item.friends) {
-        setFriends(friendData.Item.friends);
+        const friendEmails = friendData.Item.friends.map(
+          (friend) => friend.email
+        );
+
+        // Array to store friend details
+        const friendDetails = [];
+
+        // Loop through friend emails
+        for (const friendEmail of friendEmails) {
+          // Get friend's details from Users table
+          const getUserParams = {
+            TableName: "Users",
+            Key: { email: friendEmail },
+          };
+          const userData = await dynamoDB.get(getUserParams).promise();
+
+          // If user data exists, push it to friendDetails array
+          if (userData.Item) {
+            friendDetails.push(userData.Item);
+          }
+        }
+
+        // Now friendDetails array contains details of all friends
+        // Set friends with the details from Users table
+        setFriends(friendDetails);
       } else {
+        // If no friends found, set friends to an empty array
         setFriends([]);
       }
     } catch (error) {
-      console.error("Error fetching friends:", error);
+      console.error("Error fetching friends data:", error);
     }
   };
-
   useEffect(() => {
     fetchFriends();
   }, [user]);
@@ -212,33 +236,36 @@ const CreateGroupScreen = ({ navigation, route }) => {
         const selectedFriendsEmail = Object.keys(selectedFriends)
           .filter((index) => selectedFriends[index])
           .map((index) => friends[index].email);
-  
+
+        // Thêm người tạo nhóm vào danh sách thành viên
+        const groupMembers = [...selectedFriendsEmail, user.email];
+
         const groupData = {
           groupId: groupId,
-          members: selectedFriendsEmail,
+          members: groupMembers,
           groupName: groupNameValue,
           avatarGroup: avatarUri || "",
           messages: [],
           roles: {}, // Khởi tạo roles
         };
-  
+
         // Thiết lập vai trò cho người tạo nhóm
         groupData.roles[user.email] = "Trưởng nhóm";
-  
+
         // Thiết lập vai trò cho các thành viên
         selectedFriendsEmail.forEach((email) => {
           if (email !== user.email) {
             groupData.roles[email] = "Thành viên";
           }
         });
-  
+
         const putParams = {
           TableName: "GroupChats",
           Item: groupData,
         };
-  
+
         await dynamoDB.put(putParams).promise();
-  
+
         navigation.navigate("PhoneBookScreen", { groups: groupData });
       } catch (error) {
         console.error("Error creating group:", error);
@@ -251,7 +278,6 @@ const CreateGroupScreen = ({ navigation, route }) => {
       );
     }
   };
-  
 
   return (
     <SafeAreaView style={styles.container}>

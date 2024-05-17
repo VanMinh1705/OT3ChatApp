@@ -33,6 +33,7 @@ const ChatScreen = ({ navigation, user, friend }) => {
   const [email, setEmail] = useState("");
   const [friendRequestSent, setFriendRequestSent] = useState(false);
   const [boxChats, setBoxChats] = useState([]);
+  const [groupChats, setGroupChats] = useState([]); // Thêm state cho nhóm chat
   const [searchResult, setSearchResult] = useState([]);
   const [searchedUser, setSearchedUser] = useState(null);
   const [selectedBoxChat, setSelectedBoxChat] = useState(null);
@@ -61,10 +62,24 @@ const ChatScreen = ({ navigation, user, friend }) => {
       if (response.Items) {
         setBoxChats(response.Items);
       }
+
+      // Fetch group chats
+      const groupParams = {
+        TableName: "GroupChats",
+        FilterExpression: "contains(members, :userEmail)",
+        ExpressionAttributeValues: {
+          ":userEmail": user.email,
+        },
+      };
+      const groupResponse = await dynamoDB.scan(groupParams).promise();
+      if (groupResponse.Items) {
+        setGroupChats(groupResponse.Items);
+      }
     } catch (error) {
       console.error("Error fetching box chats:", error);
     }
   };
+
   const handleChatWithSearchedUser = (user) => {
     // Kiểm tra xem người dùng tìm kiếm có phải là bạn bè không
     const isFriend = boxChats.some(
@@ -73,8 +88,13 @@ const ChatScreen = ({ navigation, user, friend }) => {
     setIsFriend(isFriend);
     navigation.navigate("BoxChat", { friend: user, user: user });
   };
+
   const handleChatWithFriend = (friend) => {
     navigation.navigate("BoxChat", { friend, user });
+  };
+
+  const handleChatWithGroup = (group) => {
+    navigation.navigate("GroupChat", { group, user });
   };
 
   const searchUser = async (searchText) => {
@@ -187,35 +207,69 @@ const ChatScreen = ({ navigation, user, friend }) => {
 
   // Render danh sách các box chat
   const renderBoxChats = () => {
-    return boxChats.map((boxChat, index) => (
-      <Pressable
-        key={index}
-        style={styles.boxChatItem}
-        onPress={() => handleChatWithFriend(boxChat.receiverInfo)}
-      >
-        <View style={styles.boxChatItemContent}>
-          <Image
-            source={{ uri: boxChat.receiverInfo.avatarUser }}
-            style={styles.avatar}
-          />
-          <View style={styles.textContainer}>
-            <Text style={styles.receiverName}>
-              {boxChat.receiverInfo.hoTen}
-            </Text>
-            <Text style={styles.receiverMessage}>
-              {boxChat.messages.length > 0
-                ? boxChat.messages[boxChat.messages.length - 1].isSender
+    return boxChats
+      .filter((boxChat) => boxChat.messages && boxChat.messages.length > 0) // Chỉ lấy những box chat có dữ liệu messages
+      .map((boxChat, index) => (
+        <Pressable
+          key={index}
+          style={styles.boxChatItem}
+          onPress={() => handleChatWithFriend(boxChat.receiverInfo)}
+        >
+          <View style={styles.boxChatItemContent}>
+            <Image
+              source={{ uri: boxChat.receiverInfo.avatarUser }}
+              style={styles.avatar}
+            />
+            <View style={styles.textContainer}>
+              <Text style={styles.receiverName}>
+                {boxChat.receiverInfo.hoTen}
+              </Text>
+              <Text style={styles.receiverMessage}>
+                {boxChat.messages[boxChat.messages.length - 1].isSender
                   ? "Bạn: " +
                     boxChat.messages[boxChat.messages.length - 1].content
                   : boxChat.receiverInfo.hoTen +
                     ": " +
-                    boxChat.messages[boxChat.messages.length - 1].content // Lấy tên của người nhận
-                : ""}
-            </Text>
+                    boxChat.messages[boxChat.messages.length - 1].content}
+              </Text>
+            </View>
           </View>
-        </View>
-      </Pressable>
-    ));
+        </Pressable>
+      ));
+  };
+
+  const renderGroupChats = () => {
+    return groupChats
+      .filter(
+        (groupChat) => groupChat.messages && groupChat.messages.length > 0
+      ) // Chỉ lấy những group có dữ liệu messages
+      .map((groupChat, index) => (
+        <Pressable
+          key={index}
+          style={styles.boxChatItem}
+          onPress={() => handleChatWithGroup(groupChat)}
+        >
+          <View style={styles.boxChatItemContent}>
+            <Image
+              source={{ uri: groupChat.avatarGroup }}
+              style={styles.avatar}
+            />
+            <View style={styles.textContainer}>
+              <Text style={styles.receiverName}>{groupChat.groupName}</Text>
+              <Text style={styles.receiverMessage}>
+                {groupChat.messages[groupChat.messages.length - 1]
+                  .senderEmail === user.email
+                  ? "Bạn: " +
+                    groupChat.messages[groupChat.messages.length - 1].content
+                  : groupChat.messages[groupChat.messages.length - 1]
+                      .senderEmail +
+                    ": " +
+                    groupChat.messages[groupChat.messages.length - 1].content}
+              </Text>
+            </View>
+          </View>
+        </Pressable>
+      ));
   };
 
   const dynamoDB = new DynamoDB.DocumentClient({
@@ -461,6 +515,8 @@ const ChatScreen = ({ navigation, user, friend }) => {
           />
           {/* Render BoxChatt */}
           {renderBoxChats()}
+          {/* Render GroupChats */}
+          {renderGroupChats()}
         </View>
 
         {/* Hiển thị kết quả tìm kiếm */}

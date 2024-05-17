@@ -209,13 +209,17 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Handle group message event
+  // Chat Group
+
+  socket.on("joinGroup", (groupId) => {
+    socket.join(groupId);
+    console.log(`User joined group ${groupId}`);
+  });
   // Handle group message event
   socket.on("sendGroupMessage", async ({ senderMessage }) => {
     console.log("Send Group Message:", senderMessage);
 
     try {
-      // Lưu tin nhắn vào cơ sở dữ liệu DynamoDB
       const params = {
         TableName: "GroupChats",
         Key: {
@@ -231,13 +235,11 @@ io.on("connection", (socket) => {
       };
       await dynamoDB.update(params).promise();
 
-      // Gửi lại tin nhắn đến tất cả các thành viên trong nhóm
       io.to(senderMessage.groupId).emit("receiveGroupMessage", {
         senderMessage,
       });
     } catch (error) {
       console.error("Error saving group message:", error);
-      return;
     }
   });
 
@@ -246,10 +248,10 @@ io.on("connection", (socket) => {
 
     try {
       // Lưu tin nhắn vào cơ sở dữ liệu DynamoDB
-      const senderParams = {
-        TableName: "BoxChats",
+      const params = {
+        TableName: "GroupChats",
         Key: {
-          groupId: senderMessage.groupId,
+          senderEmail: senderMessage.senderEmail,
         },
         UpdateExpression:
           "SET messages = list_append(if_not_exists(messages, :empty_list), :newMessage)",
@@ -259,9 +261,9 @@ io.on("connection", (socket) => {
         },
         ReturnValues: "UPDATED_NEW",
       };
-      await dynamoDB.update(senderParams).promise();
+      await dynamoDB.update(params).promise();
 
-      // Gửi lại tin nhắn đến tất cả các client
+      // Gửi lại tin nhắn đến tất cả các thành viên trong nhóm
       io.to(senderMessage.groupId).emit("receiveGroupMessage", {
         senderMessage,
       });

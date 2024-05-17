@@ -37,17 +37,42 @@ const FriendScreen = ({ user, navigation }) => {
     try {
       const getFriendsParams = {
         TableName: "Friends",
-        Key: { senderEmail: user?.email },
+        Key: { senderEmail: user?.email }, // Assuming user is defined somewhere
       };
       const friendData = await dynamoDB.get(getFriendsParams).promise();
 
       if (friendData.Item && friendData.Item.friends) {
-        setFriends(friendData.Item.friends);
+        const friendEmails = friendData.Item.friends.map(
+          (friend) => friend.email
+        );
+
+        // Array to store friend details
+        const friendDetails = [];
+
+        // Loop through friend emails
+        for (const friendEmail of friendEmails) {
+          // Get friend's details from Users table
+          const getUserParams = {
+            TableName: "Users",
+            Key: { email: friendEmail },
+          };
+          const userData = await dynamoDB.get(getUserParams).promise();
+
+          // If user data exists, push it to friendDetails array
+          if (userData.Item) {
+            friendDetails.push(userData.Item);
+          }
+        }
+
+        // Now friendDetails array contains details of all friends
+        // Set friends with the details from Users table
+        setFriends(friendDetails);
       } else {
+        // If no friends found, set friends to an empty array
         setFriends([]);
       }
     } catch (error) {
-      console.error("Error fetching friends:", error);
+      console.error("Error fetching friends data:", error);
     }
   };
 
@@ -149,7 +174,6 @@ const FriendScreen = ({ user, navigation }) => {
       const updatedFriendRequests = requestResult.Item.friendRequests.filter(
         (request) => request.email !== friendRequest.email
       );
-
       // Cập nhật lại mảng friendRequests mới vào cơ sở dữ liệu
       const updateParams = {
         TableName: "FriendRequests",
@@ -238,7 +262,6 @@ const FriendScreen = ({ user, navigation }) => {
       const existingChatData = await dynamoDB
         .batchGet(existingChatParams)
         .promise();
-
       // Kiểm tra nếu không có dữ liệu hoặc dữ liệu không đúng định dạng
       if (
         !existingChatData ||
