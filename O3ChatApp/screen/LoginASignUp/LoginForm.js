@@ -67,45 +67,42 @@ const LoginForm = ({ navigation }) => {
     }
   };
 
-  const handleForgotPassword = async () => {
+  const handleForgotPassword = () => {
+    setModalVisible(true);
+  };
+
+  const handleResetPasswordRequest = async () => {
     try {
       if (!email.match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)) {
         Alert.alert("Lỗi", "Email không hợp lệ");
         return;
       }
-      setModalVisible(true);
-    } catch (error) {
-      console.error("Lỗi khi đặt lại mật khẩu:", error);
-      Alert.alert("Lỗi", "Đã xảy ra lỗi khi đặt lại mật khẩu");
-    }
-  };
 
-  const handleResetPassword = async () => {
-    try {
-      const dynamoDB = new DynamoDB.DocumentClient({
-        region: REGION,
-        accessKeyId: ACCESS_KEY_ID,
-        secretAccessKey: SECRET_ACCESS_KEY,
+      if (!newPassword) {
+        Alert.alert("Lỗi", "Vui lòng nhập mật khẩu mới");
+        return;
+      }
+
+      const response = await fetch("http://192.168.1.41:3000/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
       });
 
-      const updateParams = {
-        TableName: "Users",
-        Key: {
-          email: email,
-        },
-        UpdateExpression: "SET matKhau = :newPassword",
-        ExpressionAttributeValues: {
-          ":newPassword": newPassword,
-        },
-      };
-
-      await dynamoDB.update(updateParams).promise();
-
-      Alert.alert("Thành công", "Mật khẩu mới đã được cập nhật thành công");
-      setResetModalVisible(false);
+      const data = await response.json();
+      console.log(data);
+      if (data.error) {
+        Alert.alert("Lỗi", data.error);
+      } else {
+        setResetModalVisible(false);
+        navigation.navigate("PhoneAuthScreen", {
+          email,
+          newPassword,
+        });
+      }
     } catch (error) {
-      console.error("Lỗi khi cập nhật mật khẩu mới:", error);
-      Alert.alert("Lỗi", "Đã xảy ra lỗi khi cập nhật mật khẩu mới");
+      console.error("Lỗi khi gửi yêu cầu đặt lại mật khẩu:", error);
+      Alert.alert("Lỗi", "Đã xảy ra lỗi khi gửi yêu cầu đặt lại mật khẩu");
     }
   };
 
@@ -193,7 +190,7 @@ const LoginForm = ({ navigation }) => {
               value={newPassword}
             />
             <Pressable
-              onPress={handleResetPassword}
+              onPress={handleResetPasswordRequest}
               style={styles.btnResetPass}
             >
               <Text style={styles.txtResetPass}>Cập nhật mật khẩu</Text>

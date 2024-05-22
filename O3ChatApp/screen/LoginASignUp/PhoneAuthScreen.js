@@ -22,7 +22,7 @@ const dynamodb = new AWS.DynamoDB.DocumentClient();
 
 const PhoneAuthScreen = ({ route, navigation }) => {
   const [otp, setOtp] = useState(Array(6).fill(""));
-  const { email, hoTen, matKhau, imageURL } = route.params;
+  const { email, hoTen, matKhau, imageURL, newPassword } = route.params;
   const inputs = useRef([]);
 
   const handleChange = (index) => (value) => {
@@ -53,7 +53,7 @@ const PhoneAuthScreen = ({ route, navigation }) => {
   const handleVerify = async () => {
     try {
       const otpCode = otp.join("");
-      const response = await fetch("http://172.28.107.37:3000/verify-otp", {
+      const response = await fetch("http://192.168.1.41:3000/verify-otp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -65,13 +65,40 @@ const PhoneAuthScreen = ({ route, navigation }) => {
 
       if (response.ok && data.success) {
         // Xác thực thành công
-        completeSignUp();
+        if (newPassword) {
+          // Nếu có newPassword, đây là việc cập nhật mật khẩu
+          updatePassword();
+        } else {
+          // Nếu không có newPassword, đây là việc đăng ký tài khoản mới
+          completeSignUp();
+        }
       } else {
         Alert.alert("Xác thực OTP không thành công");
       }
     } catch (error) {
       console.error("Error verifying OTP:", error);
       Alert.alert("Xác thực OTP không thành công");
+    }
+  };
+
+  const updatePassword = async () => {
+    try {
+      const updateParams = {
+        TableName: "Users",
+        Key: { email },
+        UpdateExpression: "SET matKhau = :newPassword",
+        ExpressionAttributeValues: {
+          ":newPassword": newPassword,
+        },
+      };
+
+      await dynamodb.update(updateParams).promise();
+
+      Alert.alert("Thành công", "Mật khẩu mới đã được cập nhật thành công");
+      navigation.navigate("LoginForm");
+    } catch (error) {
+      console.error("Lỗi khi cập nhật mật khẩu mới:", error);
+      Alert.alert("Lỗi", "Đã xảy ra lỗi khi cập nhật mật khẩu mới");
     }
   };
 
