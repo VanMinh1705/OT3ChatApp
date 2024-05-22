@@ -41,8 +41,9 @@ const UserScreen = ({ navigation, user }) => {
   const [email, setEmail] = useState(user?.email);
   const [gioiTinh, setGioiTinh] = useState(user?.gioiTinh);
   const [ngaySinh, setNgaySinh] = useState(
-    new Date(user?.ngaySinh) || new Date()
+    user?.ngaySinh ? new Date(user.ngaySinh) : new Date()
   );
+
   const [soDienThoai, setSoDienThoai] = useState(user?.soDienThoai);
   const [fileType, setFileType] = useState("");
   const [modalVisible, setModalVisible] = useState(false);

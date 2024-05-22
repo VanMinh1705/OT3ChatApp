@@ -418,7 +418,7 @@ const ChatScreen = ({ navigation, user, friend }) => {
                 width: 235,
                 height: 30,
                 color: "#000",
-                fontSize: 16,
+                fontSize: 12,
                 borderRadius: 10,
                 paddingLeft: 10,
                 borderWidth: 1,

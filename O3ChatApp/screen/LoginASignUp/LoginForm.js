@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   txtResetPass: {
-    color: "#fff",
+    color: "#000",
     fontWeight: "bold",
   },
 });
