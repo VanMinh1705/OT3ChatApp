@@ -30,7 +30,7 @@ import * as FileSystem from "expo-file-system";
 import { Checkbox } from "react-native-paper";
 import { useFocusEffect } from "@react-navigation/native";
 
-const socket = io("http://192.168.1.8:3000");
+const socket = io("http://192.168.1.41:3000");
 
 const GroupChat = ({ navigation, route }) => {
   const { user } = route.params;
@@ -433,7 +433,7 @@ const GroupChat = ({ navigation, route }) => {
 
   const deleteMessage = async () => {
     try {
-      // Tìm kiếm tin nhắn cần xóa trong danh sách messages
+      // Tạo bản sao của mảng messages và cập nhật tin nhắn cần xóa
       const updatedMessages = messages.map((msg, index) => {
         if (index === selectedMessageIndex) {
           // Nếu là tin nhắn cần xóa, thay đổi nội dung thành "Tin nhắn đã được xóa"
@@ -448,9 +448,9 @@ const GroupChat = ({ navigation, route }) => {
 
       // Cập nhật danh sách tin nhắn trong DynamoDB
       const params = {
-        TableName: "BoxChats",
+        TableName: "GroupChats",
         Key: {
-          senderEmail: `${user.email}_${friend.email}`,
+          groupId: group.groupId,
         },
         UpdateExpression: "SET messages = :messages",
         ExpressionAttributeValues: {
@@ -464,7 +464,7 @@ const GroupChat = ({ navigation, route }) => {
       setMessages(updatedMessages);
       closeModal();
     } catch (error) {
-      console.error("Error deleting message:", error);
+      console.error("Error deleting group message:", error);
     }
   };
 
@@ -473,14 +473,13 @@ const GroupChat = ({ navigation, route }) => {
   // Gửi tin nhắn thu hồi
   const retractMessage = async () => {
     try {
-      // Cập nhật tin nhắn thu hồi trong cơ sở dữ liệu và gửi thông báo đến máy nhận
-      socket.emit("retractMessage", {
-        senderEmail: `${user.email}_${friend.email}`,
-        receiverEmail: `${friend.email}_${user.email}`,
+      // Cập nhật tin nhắn thu hồi trong cơ sở dữ liệu và gửi thông báo đến tất cả thành viên trong nhóm
+      socket.emit("retractGroupMessage", {
+        groupId: group.groupId,
         selectedMessageIndex: selectedMessageIndex,
       });
 
-      // Cập nhật trạng thái tin nhắn thu hồi trên máy của bạn
+      // Cập nhật trạng thái tin nhắn thu hồi trong giao diện người dùng
       const updatedMessages = [...messages];
       updatedMessages[selectedMessageIndex] = {
         ...updatedMessages[selectedMessageIndex],
@@ -492,9 +491,33 @@ const GroupChat = ({ navigation, route }) => {
       // Đóng modal
       closeModal();
     } catch (error) {
-      console.error("Error retracting message:", error);
+      console.error("Error retracting group message:", error);
     }
   };
+
+  // Lắng nghe sự kiện tin nhắn thu hồi từ server
+  useEffect(() => {
+    socket.on(
+      "receiveRetractGroupMessage",
+      ({ groupId, selectedMessageIndex }) => {
+        // Kiểm tra xem tin nhắn thu hồi có thuộc về nhóm hiện tại không
+        if (groupId === group.groupId) {
+          // Cập nhật trạng thái tin nhắn thu hồi trong giao diện người dùng
+          const updatedMessages = [...messages];
+          updatedMessages[selectedMessageIndex] = {
+            ...updatedMessages[selectedMessageIndex],
+            content: "Tin nhắn đã được thu hồi",
+            image: null,
+          };
+          setMessages(updatedMessages);
+        }
+      }
+    );
+
+    return () => {
+      socket.off("receiveRetractGroupMessage");
+    };
+  }, [messages, group.id]);
 
   // Giao diện modal xử lý tin nhắn
   const renderModal = () => {
@@ -510,7 +533,8 @@ const GroupChat = ({ navigation, route }) => {
           <View style={styles.modalContent}>
             {selectedMessage && (
               <>
-                {selectedMessage.isSender ? (
+                {selectedMessage.senderEmail === user.email ? (
+                  // Tin nhắn của người dùng hiện tại
                   <>
                     <Pressable style={styles.modalItem} onPress={deleteMessage}>
                       <Icon name="delete" size={25} />
@@ -525,6 +549,7 @@ const GroupChat = ({ navigation, route }) => {
                     </Pressable>
                   </>
                 ) : (
+                  // Tin nhắn của người khác
                   <Pressable style={styles.modalItem} onPress={deleteMessage}>
                     <Icon name="delete" size={25} />
                     <Text style={styles.modalItemText}>Xóa</Text>
@@ -537,6 +562,7 @@ const GroupChat = ({ navigation, route }) => {
       </Modal>
     );
   };
+
   const handleDeleteGroup = () => {
     if (isGroupLeader()) {
       Alert.alert(
@@ -618,8 +644,15 @@ const GroupChat = ({ navigation, route }) => {
   }, [group.groupId]);
 
   useEffect(() => {
-    socket.on("receiveGroupMessage", ({ senderMessage }) => {
-      setMessages((prevMessages) => [...prevMessages, senderMessage]);
+    socket.on("receiveGroupMessage", async ({ senderMessage }) => {
+      console.log("Received group message:", senderMessage); // In ra tin nhắn nhận được
+      // Gọi hàm để lấy thông tin người gửi
+      const senderInfo = await fetchSenderInfo(senderMessage.senderEmail);
+      // Thêm thông tin người gửi vào tin nhắn
+      const updatedMessage = { ...senderMessage, senderInfo };
+      // Cập nhật tin nhắn vào state
+      setMessages((prevMessages) => [...prevMessages, updatedMessage]);
+      scrollToBottom();
     });
 
     return () => {
@@ -692,7 +725,6 @@ const GroupChat = ({ navigation, route }) => {
       };
 
       // Thêm tin nhắn mới vào danh sách tin nhắn chỉ sau khi nó được gửi thành công
-      setMessages([...messages, senderMessage]);
       setNewMessage("");
       scrollToBottom();
 
@@ -951,123 +983,123 @@ const GroupChat = ({ navigation, route }) => {
       >
         {messages.map((message, index) => (
           <View key={index}>
-            {message.senderEmail !== user.email &&
-              message.senderInfo &&
-              message.senderInfo.avatarUser && (
-                <View style={{ flexDirection: "row" }}>
+            {message.senderEmail !== user.email && (
+              <View style={{ flexDirection: "row" }}>
+                {message.senderInfo && message.senderInfo.avatarUser && (
                   <Image
                     source={{ uri: message.senderInfo.avatarUser }}
                     style={styles.avatarImage}
                   />
-                  <Pressable
-                    key={index}
-                    onLongPress={() => handleLongPress(message, index)}
-                    style={[
-                      styles.messageContainer,
-                      {
-                        alignSelf: "flex-start",
-                        backgroundColor: "#dddddd",
-                        opacity:
-                          selectedMessage && selectedMessageIndex !== index
-                            ? 0.5
-                            : 1,
-                        marginLeft: 10, // Add margin to separate avatar and message
-                      },
-                    ]}
-                  >
-                    {message.senderInfo && message.senderInfo.hoTen && (
-                      <Text style={{ fontWeight: "bold" }}>
-                        {message.senderInfo.hoTen}
-                      </Text>
-                    )}
-
-                    {message.fileURL ? (
-                      <View
-                        style={[styles.fileContainer, { flexDirection: "row" }]}
-                      >
-                        <Text style={styles.fileName}>
-                          File: {message.fileName}
-                        </Text>
-                        <Pressable
-                          style={{ marginLeft: 5 }}
-                          onPress={() =>
-                            handleFileDownload(
-                              message.fileURL,
-                              message.fileName
-                            )
-                          }
-                        >
-                          <Icon name="download" size={20} color="black" />
-                        </Pressable>
-                      </View>
-                    ) : message.image ? (
-                      <Image
-                        resizeMode="contain"
-                        source={{ uri: message.image }}
-                        style={{
-                          width: "100%",
-                          aspectRatio: 1,
-                          borderRadius: 10,
-                        }}
-                      />
-                    ) : (
-                      <Text style={styles.messageText}>{message.content}</Text>
-                    )}
-                    <Text style={styles.messageTimestamp}>
-                      {formatMessageTimestamp(message.timestamp)}
-                    </Text>
-                  </Pressable>
-                </View>
-              )}
-            {message.senderEmail === user.email && (
-              <Pressable
-                key={index}
-                onLongPress={() => handleLongPress(message, index)}
-                style={[
-                  styles.messageContainer,
-                  {
-                    alignSelf: "flex-end",
-                    backgroundColor: "#94e5f2",
-                    opacity:
-                      selectedMessage && selectedMessageIndex !== index
-                        ? 0.5
-                        : 1,
-                  },
-                ]}
-              >
-                {message.fileURL ? (
-                  <View
-                    style={[styles.fileContainer, { flexDirection: "row" }]}
-                  >
-                    <Text style={styles.fileName}>
-                      File: {message.fileName}
-                    </Text>
-                    <Pressable
-                      style={{ marginLeft: 5 }}
-                      onPress={() =>
-                        handleFileDownload(message.fileURL, message.fileName)
-                      }
-                    >
-                      <Icon name="download" size={20} color="black" />
-                    </Pressable>
-                  </View>
-                ) : message.image ? (
-                  <Image
-                    resizeMode="contain"
-                    source={{ uri: message.image }}
-                    style={{
-                      width: "100%",
-                      aspectRatio: 1,
-                      borderRadius: 10,
-                    }}
-                  />
-                ) : (
-                  <Text style={styles.messageText}>{message.content}</Text>
                 )}
-                <Text style={styles.messageTimestamp}>
-                  {formatMessageTimestamp(message.timestamp)}
-                </Text>
-              </Pressable>
+                <Pressable
+                  key={index}
+                  onLongPress={() => handleLongPress(message, index)}
+                  style={[
+                    styles.messageContainer,
+                    {
+                      alignSelf: "flex-start",
+                      backgroundColor: "#dddddd",
+                      opacity:
+                        selectedMessage && selectedMessageIndex !== index
+                          ? 0.5
+                          : 1,
+                      marginLeft: 10, // Add margin to separate avatar and message
+                    },
+                  ]}
+                >
+                  {message.senderInfo && message.senderInfo.hoTen && (
+                    <Text style={{ fontWeight: "bold", fontSize: 13 }}>
+                      {message.senderInfo.hoTen}
+                    </Text>
+                  )}
+                  {message.fileURL ? (
+                    <View
+                      style={[styles.fileContainer, { flexDirection: "row" }]}
+                    >
+                      <Text style={styles.fileName}>
+                        File: {message.fileName}
+                      </Text>
+                      <Pressable
+                        style={{ marginLeft: 5 }}
+                        onPress={() =>
+                          handleFileDownload(message.fileURL, message.fileName)
+                        }
+                      >
+                        <Icon name="download" size={20} color="black" />
+                      </Pressable>
+                    </View>
+                  ) : message.image ? (
+                    <Image
+                      resizeMode="contain"
+                      source={{ uri: message.image }}
+                      style={{
+                        width: "90%",
+                        aspectRatio: 1,
+                        borderRadius: 10,
+                        alignSelf: "center",
+                      }}
+                    />
+                  ) : (
+                    <Text style={styles.messageText}>{message.content}</Text>
+                  )}
+                  <Text style={styles.messageTimestamp}>
+                    {formatMessageTimestamp(message.timestamp)}
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+            {message.senderEmail === user.email && (
+              <View style={{ flexDirection: "row-reverse" }}>
+                <Pressable
+                  key={index}
+                  onLongPress={() => handleLongPress(message, index)}
+                  style={[
+                    styles.messageContainer,
+                    {
+                      alignSelf: "flex-end",
+                      backgroundColor: "#94e5f2",
+                      opacity:
+                        selectedMessage && selectedMessageIndex !== index
+                          ? 0.5
+                          : 1,
+                    },
+                  ]}
+                >
+                  {message.fileURL ? (
+                    <View
+                      style={[styles.fileContainer, { flexDirection: "row" }]}
+                    >
+                      <Text style={styles.fileName}>
+                        File: {message.fileName}
+                      </Text>
+                      <Pressable
+                        style={{ marginLeft: 5 }}
+                        onPress={() =>
+                          handleFileDownload(message.fileURL, message.fileName)
+                        }
+                      >
+                        <Icon name="download" size={20} color="black" />
+                      </Pressable>
+                    </View>
+                  ) : message.image ? (
+                    <Image
+                      resizeMode="contain"
+                      source={{ uri: message.image }}
+                      style={{
+                        width: "100%",
+                        aspectRatio: 1,
+                        borderRadius: 10,
+                        alignSelf: "center",
+                      }}
+                    />
+                  ) : (
+                    <Text style={styles.messageText}>{message.content}</Text>
+                  )}
+                  <Text style={styles.messageTimestamp}>
+                    {formatMessageTimestamp(message.timestamp)}
+                  </Text>
+                </Pressable>
+              </View>
             )}
           </View>
         ))}
@@ -1243,13 +1275,13 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   messageContainer: {
-    maxWidth: "80%",
+    maxWidth: "70%",
     padding: 10,
     marginVertical: 5,
     borderRadius: 10,
   },
   messageText: {
-    fontSize: 16,
+    fontSize: 14,
   },
   inputContainer: {
     flexDirection: "row",
@@ -1296,8 +1328,8 @@ const styles = StyleSheet.create({
     top: 100,
   },
   avatarImage: {
-    width: 40,
-    height: 40,
+    width: 35,
+    height: 35,
     borderRadius: 25,
     marginLeft: 13,
     borderWidth: 1,

@@ -272,6 +272,50 @@ io.on("connection", (socket) => {
       return;
     }
   });
+
+  socket.on(
+    "retractGroupMessage",
+    async ({ groupId, selectedMessageIndex }) => {
+      console.log("Retract Group Message:", selectedMessageIndex);
+
+      try {
+        // Cập nhật tin nhắn trong cơ sở dữ liệu cho nhóm
+        const updateGroupParams = {
+          TableName: "GroupChats",
+          Key: {
+            groupId: groupId,
+          },
+          UpdateExpression:
+            "SET #messages[" +
+            selectedMessageIndex +
+            "].#content = :content, #messages[" +
+            selectedMessageIndex +
+            "].#image = :image",
+          ExpressionAttributeNames: {
+            "#messages": "messages",
+            "#content": "content",
+            "#image": "image",
+          },
+          ExpressionAttributeValues: {
+            ":content": "Tin nhắn đã được thu hồi",
+            ":image": null,
+          },
+          ReturnValues: "UPDATED_NEW",
+        };
+        await dynamoDB.update(updateGroupParams).promise();
+
+        // Gửi tin nhắn thu hồi đến tất cả thành viên trong nhóm thông qua socket
+        io.emit("receiveRetractGroupMessage", {
+          groupId,
+          selectedMessageIndex,
+        });
+      } catch (error) {
+        console.error("Error retracting group message:", error);
+        return;
+      }
+    }
+  );
+
   // Handle disconnect event
   socket.on("disconnect", () => {
     console.log("A client disconnected.");
