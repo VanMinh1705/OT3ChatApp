@@ -14,6 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { DynamoDB, S3 } from "aws-sdk";
 import * as ImagePicker from "expo-image-picker";
 import { useFonts } from "expo-font";
+import Icon from "react-native-vector-icons/MaterialIcons";
 import {
   ACCESS_KEY_ID,
   SECRET_ACCESS_KEY,
@@ -35,6 +36,14 @@ const SignUpForm = ({ navigation }) => {
     matKhau: "",
     nhapLaiMatKhau: "",
   });
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isCPasswordVisible, setIsCPasswordVisible] = useState(false);
+  const togglePasswordVisibility = () => {
+    setIsPasswordVisible(!isPasswordVisible);
+  };
+  const togglePasswordVisibility1 = () => {
+    setIsCPasswordVisible(!isCPasswordVisible);
+  };
 
   const s3 = new S3({
     accessKeyId: ACCESS_KEY_ID,
@@ -241,29 +250,53 @@ const SignUpForm = ({ navigation }) => {
             value={email}
           />
           <Text style={{ color: "red", fontSize: 12 }}>{errors.email}</Text>
-          <TextInput
-            style={{
-              ...styles.inputPass,
-              color: "#000",
-              borderColor: errors.matKhau ? "red" : "transparent",
-              borderWidth: errors.matKhau ? 1 : 0,
-            }}
-            placeholder="Mật khẩu"
-            secureTextEntry={true}
-            onChangeText={(text) => setMatKhau(text)}
-          />
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={{
+                ...styles.inputPass,
+                color: "#000",
+                borderColor: errors.matKhau ? "red" : "transparent",
+                borderWidth: errors.matKhau ? 1 : 0,
+              }}
+              placeholder="Mật khẩu"
+              secureTextEntry={!isPasswordVisible}
+              onChangeText={(text) => setMatKhau(text)}
+            />
+            <Pressable
+              style={{ position: "absolute", right: 10 }}
+              onPress={togglePasswordVisibility}
+            >
+              <Icon
+                name={isPasswordVisible ? "visibility" : "visibility-off"}
+                size={24}
+                color="#BCB2B2"
+              />
+            </Pressable>
+          </View>
           <Text style={{ color: "red", fontSize: 12 }}>{errors.matKhau}</Text>
-          <TextInput
-            style={{
-              ...styles.inputConfirmPass,
-              color: "#000",
-              borderColor: errors.nhapLaiMatKhau ? "red" : "transparent",
-              borderWidth: errors.nhapLaiMatKhau ? 1 : 0,
-            }}
-            placeholder="Nhập lại mật khẩu"
-            secureTextEntry={true}
-            onChangeText={(text) => setNhapLaiMatKhau(text)}
-          />
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={{
+                ...styles.inputConfirmPass,
+                color: "#000",
+                borderColor: errors.nhapLaiMatKhau ? "red" : "transparent",
+                borderWidth: errors.nhapLaiMatKhau ? 1 : 0,
+              }}
+              placeholder="Nhập lại mật khẩu"
+              secureTextEntry={!isCPasswordVisible}
+              onChangeText={(text) => setNhapLaiMatKhau(text)}
+            />
+            <Pressable
+              style={{ position: "absolute", right: 10 }}
+              onPress={togglePasswordVisibility1}
+            >
+              <Icon
+                name={isPasswordVisible ? "visibility" : "visibility-off"}
+                size={24}
+                color="#BCB2B2"
+              />
+            </Pressable>
+          </View>
           <Text style={{ color: "red", fontSize: 12 }}>
             {errors.nhapLaiMatKhau}
           </Text>
@@ -342,18 +375,24 @@ const styles = StyleSheet.create({
   inputPass: {
     width: 318,
     height: 46,
-    backgroundColor: "rgba(255, 255, 255, 0.80)",
     color: "#BCB2B2",
     fontSize: 16,
     borderRadius: 10,
-    paddingLeft: 10,
-    marginTop: 30,
   },
   inputConfirmPass: {
     width: 318,
     height: 46,
-    backgroundColor: "rgba(255, 255, 255, 0.80)",
+
     color: "#BCB2B2",
+    fontSize: 16,
+    borderRadius: 10,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: 318,
+    height: 46,
+    backgroundColor: "rgba(255, 255, 255, 0.80)",
     fontSize: 16,
     borderRadius: 10,
     paddingLeft: 10,

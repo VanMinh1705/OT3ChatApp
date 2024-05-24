@@ -178,43 +178,44 @@ const CreateGroupScreen = ({ navigation, route }) => {
       };
 
       const data = await s3.upload(paramsS3).promise();
-      updateGroupAvatar(data.Location);
+      // updateGroupAvatar(data.Location);
+      setAvatarUri(data.Location);
     } catch (error) {
       console.error("Error uploading avatar:", error);
       Alert.alert("Error", "Failed to upload avatar");
     }
   };
 
-  const updateGroupAvatar = async (avatarUrl) => {
-    try {
-      const dynamoDB = new DynamoDB.DocumentClient({
-        region: REGION,
-        accessKeyId: ACCESS_KEY_ID,
-        secretAccessKey: SECRET_ACCESS_KEY,
-      });
+  // const updateGroupAvatar = async (avatarUrl) => {
+  //   try {
+  //     const dynamoDB = new DynamoDB.DocumentClient({
+  //       region: REGION,
+  //       accessKeyId: ACCESS_KEY_ID,
+  //       secretAccessKey: SECRET_ACCESS_KEY,
+  //     });
 
-      const paramsDynamoDb = {
-        TableName: tableName,
-        Key: { email: user.email },
-        UpdateExpression: "set avatarGroup = :avatar",
-        ExpressionAttributeValues: {
-          ":avatar": avatarUrl,
-        },
-        ReturnValues: "UPDATED_NEW",
-      };
+  //     const paramsDynamoDb = {
+  //       TableName: tableName,
+  //       Key: { email: user.email },
+  //       UpdateExpression: "set avatarGroup = :avatar",
+  //       ExpressionAttributeValues: {
+  //         ":avatar": avatarUrl,
+  //       },
+  //       ReturnValues: "UPDATED_NEW",
+  //     };
 
-      // Cập nhật đường dẫn avatar mới trong cơ sở dữ liệu DynamoDB
-      await dynamoDB.update(paramsDynamoDb).promise();
+  //     // Cập nhật đường dẫn avatar mới trong cơ sở dữ liệu DynamoDB
+  //     await dynamoDB.update(paramsDynamoDb).promise();
 
-      // Cập nhật đường dẫn avatar mới trong state avatarUri
-      setAvatarUri(avatarUrl);
+  //     // Cập nhật đường dẫn avatar mới trong state avatarUri
+  //     setAvatarUri(avatarUrl);
 
-      Alert.alert("Xong", "Avatar đã được cập nhật!");
-    } catch (error) {
-      console.error("Error updating user data:", error);
-      Alert.alert("Error", "Failed to update user data");
-    }
-  };
+  //     Alert.alert("Xong", "Avatar đã được cập nhật!");
+  //   } catch (error) {
+  //     console.error("Error updating user data:", error);
+  //     Alert.alert("Error", "Failed to update user data");
+  //   }
+  // };
   const handleSelectFriend = (index) => {
     setSelectedFriends((prevState) => ({
       ...prevState,

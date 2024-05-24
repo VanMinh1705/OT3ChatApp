@@ -12,6 +12,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { useFonts } from "expo-font";
 import { DynamoDB } from "aws-sdk";
+import Icon from "react-native-vector-icons/MaterialIcons";
 import { ACCESS_KEY_ID, SECRET_ACCESS_KEY, REGION } from "@env";
 
 const LoginForm = ({ navigation }) => {
@@ -24,6 +25,10 @@ const LoginForm = ({ navigation }) => {
   const [newPassword, setNewPassword] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
   const [resetModalVisible, setResetModalVisible] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const togglePasswordVisibility = () => {
+    setIsPasswordVisible(!isPasswordVisible);
+  };
 
   const handleLogin = async () => {
     try {
@@ -126,13 +131,25 @@ const LoginForm = ({ navigation }) => {
         onChangeText={(text) => setEmail(text)}
         value={email}
       />
-      <TextInput
-        style={{ ...styles.inputPass, color: "#000" }}
-        placeholder="Mật khẩu"
-        secureTextEntry
-        onChangeText={(text) => setMatKhau(text)}
-        value={matKhau}
-      />
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={{ ...styles.inputPass, color: "#000", flex: 1 }}
+          placeholder="Mật khẩu"
+          secureTextEntry={!isPasswordVisible}
+          onChangeText={(text) => setMatKhau(text)}
+          value={matKhau}
+        />
+        <Pressable
+          style={{ position: "absolute", right: 10 }}
+          onPress={togglePasswordVisibility}
+        >
+          <Icon
+            name={isPasswordVisible ? "visibility" : "visibility-off"}
+            size={24}
+            color="#BCB2B2"
+          />
+        </Pressable>
+      </View>
       <Text
         style={{ color: "#0B0B0B", fontSize: 14, marginTop: 20 }}
         onPress={handleForgotPassword}
@@ -241,12 +258,9 @@ const styles = StyleSheet.create({
   inputPass: {
     width: 318,
     height: 46,
-    backgroundColor: "rgba(255, 255, 255, 0.80)",
     color: "#BCB2B2",
     fontSize: 16,
     borderRadius: 10,
-    paddingLeft: 10,
-    marginTop: 36,
   },
   btnLogin: {
     width: 200,
@@ -295,5 +309,18 @@ const styles = StyleSheet.create({
   txtResetPass: {
     color: "#000",
     fontWeight: "bold",
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+
+    width: 318,
+    height: 46,
+    backgroundColor: "rgba(255, 255, 255, 0.80)",
+    fontSize: 16,
+    borderRadius: 10,
+    paddingLeft: 10,
+    marginTop: 36,
   },
 });
